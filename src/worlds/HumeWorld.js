@@ -46,8 +46,9 @@ export class HumeWorld extends BaseWorld {
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
           float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.5);
-          // Wave foam pattern
-          float foam = smoothstep(0.7, 0.9, sin(vUv.x * 30.0 + time * 1.5) * sin(vUv.y * 22.0 + time));
+          // Wave foam — use world-space noise, not UV grid
+          float foam = smoothstep(0.6, 0.9, sin(vWorldPos.x * 3.1 + time * 1.1) * sin(vWorldPos.z * 2.7 + time * 0.8) * 0.5 + 0.5)
+                     * smoothstep(0.55, 0.75, sin(vWorldPos.x * 1.8 - vWorldPos.z * 2.3 + time * 0.6));
           vec3 deep    = vec3(0.02, 0.05, 0.12);
           vec3 shallow = vec3(0.06, 0.14, 0.28);
           vec3 reflect = vec3(0.15, 0.20, 0.35);
@@ -69,40 +70,138 @@ export class HumeWorld extends BaseWorld {
   _buildIslands() {
     this.islands = [];
     const IMPRESSIONS = [
-      { label: 'Flame', color: 0xff6600, pos: [-4, -1, -2], size: 0.7 },
-      { label: 'Red Apple', color: 0xff2222, pos: [3, -1, -3], size: 0.6 },
-      { label: 'Thunder', color: 0x8888ff, pos: [-2, -1, 2], size: 0.5 },
-      { label: 'Cold', color: 0x88ccff, pos: [4, -1, 2], size: 0.5 },
-      { label: 'Sweetness', color: 0xff88cc, pos: [0, -1, -4], size: 0.55 },
-      { label: 'Pain', color: 0x882222, pos: [-5, -1, 0], size: 0.5 },
+      { label: 'Flame',     color: 0xff6600, pos: [-4, -1.3, -2], size: 1.0, h: 0.7 },
+      { label: 'Red Apple', color: 0xff2222, pos: [3,  -1.5, -3], size: 0.9, h: 0.5 },
+      { label: 'Thunder',   color: 0x8888ff, pos: [-2, -1.2, 2],  size: 0.8, h: 0.6 },
+      { label: 'Cold',      color: 0x88ccff, pos: [4,  -1.4, 2],  size: 0.85, h: 0.55 },
+      { label: 'Sweetness', color: 0xff88cc, pos: [0,  -1.6, -4], size: 0.95, h: 0.5 },
+      { label: 'Pain',      color: 0x882222, pos: [-5, -1.1, 0],  size: 0.8, h: 0.65 },
     ];
 
-    IMPRESSIONS.forEach(({ color, pos, size }) => {
-      // Island land mass
-      const islandGeo = new THREE.CylinderGeometry(size, size * 1.2, 0.4, 12);
+    this.flameParticleGeos = [];
+
+    IMPRESSIONS.forEach(({ label, color, pos, size, h }) => {
+      // Island land mass — taller with green top cap
+      const islandGeo = new THREE.CylinderGeometry(size * 0.85, size * 1.3, h, 14);
       const islandMat = makeIslandRockMaterial();
       const island = new THREE.Mesh(islandGeo, islandMat);
       island.position.set(...pos);
       this.group.add(island);
+      // Green mossy top
+      const topMat = new THREE.MeshStandardMaterial({ color: 0x2a4a1a, roughness: 0.9 });
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.82, size * 0.85, 0.08, 14), topMat);
+      top.position.set(pos[0], pos[1] + h / 2 + 0.04, pos[2]);
+      this.group.add(top);
 
-      // Impression object on island
-      const objGeo = new THREE.SphereGeometry(0.2, 8, 8);
-      const objMat = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.6,
-        roughness: 0.3,
-      });
-      const obj = new THREE.Mesh(objGeo, objMat);
-      obj.position.set(pos[0], pos[1] + 0.4, pos[2]);
-      this.group.add(obj);
+      let obj, light;
 
-      // Glow
-      const light = new THREE.PointLight(color, 1, 3);
-      light.position.copy(obj.position);
-      this.group.add(light);
+      if (label === 'Flame') {
+        // Fire pit with particle flames
+        const pitMat = new THREE.MeshStandardMaterial({ color: 0x2a1205, roughness: 0.9, metalness: 0.3 });
+        const pit = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.15, 10), pitMat);
+        pit.position.set(pos[0], pos[1] + 0.28, pos[2]);
+        this.group.add(pit);
+        obj = pit;
 
-      this.islands.push({ island, obj, light, color, baseY: pos[1] });
+        // Flame particles
+        const fCount = 40;
+        const fPos = new Float32Array(fCount * 3);
+        for (let i = 0; i < fCount; i++) {
+          fPos[i*3]   = pos[0] + (Math.random()-0.5)*0.3;
+          fPos[i*3+1] = pos[1] + 0.3 + Math.random() * 0.7;
+          fPos[i*3+2] = pos[2] + (Math.random()-0.5)*0.3;
+        }
+        const fGeo = new THREE.BufferGeometry();
+        fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+        const fMat = new THREE.PointsMaterial({ color: 0xff8820, size: 0.1, transparent: true, opacity: 0.85, depthWrite: false });
+        this.group.add(new THREE.Points(fGeo, fMat));
+        this.flameParticleGeos.push({ geo: fGeo, cx: pos[0], cy: pos[1], cz: pos[2] });
+
+        light = new THREE.PointLight(color, 2.0, 4);
+        light.position.set(pos[0], pos[1]+0.7, pos[2]);
+        this.group.add(light);
+
+      } else if (label === 'Red Apple') {
+        // Apple shape: sphere with brown stem
+        const appleGeo = new THREE.SphereGeometry(0.38, 12, 12);
+        obj = new THREE.Mesh(appleGeo, new THREE.MeshStandardMaterial({ color: 0xcc1111, emissive: 0x660000, emissiveIntensity: 0.4, roughness: 0.35 }));
+        obj.position.set(pos[0], pos[1]+0.65, pos[2]);
+        obj.scale.set(1, 1.1, 1);
+        this.group.add(obj);
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 4), new THREE.MeshStandardMaterial({ color: 0x4a2a08, roughness: 0.9 }));
+        stem.position.set(pos[0], pos[1]+1.06, pos[2]);
+        this.group.add(stem);
+        light = new THREE.PointLight(color, 0.8, 3);
+        light.position.set(pos[0], pos[1]+0.5, pos[2]);
+        this.group.add(light);
+
+      } else if (label === 'Thunder') {
+        // Lightning bolt shape using merged line segments
+        const boltPts = [
+          new THREE.Vector3(0.0,  0.8, 0), new THREE.Vector3( 0.12, 0.4, 0),
+          new THREE.Vector3(0.12, 0.4, 0), new THREE.Vector3(-0.04, 0.4, 0),
+          new THREE.Vector3(-0.04, 0.4, 0), new THREE.Vector3( 0.15, 0.0, 0),
+          new THREE.Vector3(0.15, 0.0, 0), new THREE.Vector3(-0.05, 0.0, 0),
+          new THREE.Vector3(-0.05, 0.0, 0), new THREE.Vector3( 0.0, -0.5, 0),
+        ].map(p => p.add(new THREE.Vector3(pos[0], pos[1]+0.4, pos[2])));
+        const boltGeo = new THREE.BufferGeometry().setFromPoints(boltPts);
+        this.boltMat = new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.9 });
+        obj = new THREE.LineSegments(boltGeo, this.boltMat);
+        this.group.add(obj);
+        light = new THREE.PointLight(color, 1.2, 3.5);
+        light.position.set(pos[0], pos[1]+0.4, pos[2]);
+        this.group.add(light);
+
+      } else if (label === 'Cold') {
+        // Icy spiky crystals
+        const iceMat = new THREE.MeshStandardMaterial({ color: 0x99ddff, emissive: 0x2266aa, emissiveIntensity: 0.5, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.88 });
+        obj = new THREE.Group();
+        [[0,0,0],[0.28,0,0.15],[-0.2,0,0.28],[0.08,0,-0.32],[0.0,0,0.1]].forEach(([ox,oy,oz], ci) => {
+          const ch = 0.45 + ci * 0.12;
+          const crystal = new THREE.Mesh(new THREE.ConeGeometry(0.1, ch, 5), iceMat);
+          crystal.position.set(pos[0]+ox, pos[1]+0.4+ch/2, pos[2]+oz);
+          crystal.rotation.z = (Math.random()-0.5)*0.35;
+          this.group.add(crystal);
+        });
+        obj.position.set(pos[0], pos[1], pos[2]);
+        light = new THREE.PointLight(0x88ccff, 1.0, 3);
+        light.position.set(pos[0], pos[1]+0.5, pos[2]);
+        this.group.add(light);
+
+      } else if (label === 'Sweetness') {
+        // Soft pink swirling sphere — smooth and round
+        obj = new THREE.Mesh(
+          new THREE.SphereGeometry(0.32, 14, 14),
+          new THREE.MeshStandardMaterial({ color: 0xff99cc, emissive: 0xaa3366, emissiveIntensity: 0.6, roughness: 0.2, transparent: true, opacity: 0.9 })
+        );
+        obj.position.set(pos[0], pos[1]+0.65, pos[2]);
+        this.group.add(obj);
+        // Orbiting small spheres
+        this.sweetnessOrbiters = [];
+        [0, Math.PI*2/3, Math.PI*4/3].forEach((a, si) => {
+          const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffccee }));
+          orb.position.set(pos[0]+Math.cos(a)*0.52, pos[1]+0.65, pos[2]+Math.sin(a)*0.52);
+          this.group.add(orb);
+          this.sweetnessOrbiters.push({ orb, baseA: a, cx: pos[0], cy: pos[1]+0.65, cz: pos[2] });
+        });
+        light = new THREE.PointLight(color, 0.9, 3);
+        light.position.set(pos[0], pos[1]+0.5, pos[2]);
+        this.group.add(light);
+
+      } else { // Pain
+        // Jagged dark angular geometry
+        obj = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.38, 0),
+          new THREE.MeshStandardMaterial({ color: 0x660000, emissive: 0x330000, emissiveIntensity: 0.8, roughness: 0.8 })
+        );
+        obj.position.set(pos[0], pos[1]+0.65, pos[2]);
+        this.group.add(obj);
+        light = new THREE.PointLight(0xaa0000, 1.5, 3.5);
+        light.position.set(pos[0], pos[1]+0.5, pos[2]);
+        this.group.add(light);
+      }
+
+      this.islands.push({ island, obj, light, color, baseY: pos[1], label });
     });
   }
 
@@ -194,25 +293,48 @@ export class HumeWorld extends BaseWorld {
     const skyGeo = new THREE.SphereGeometry(22, 24, 12);
     this.group.add(new THREE.Mesh(skyGeo, this.skyMat));
 
-    // Mist particles
-    const count = 800;
+    // Mist — large soft translucent billboard planes drifting over the water
+    const mistMat = new THREE.MeshBasicMaterial({
+      color: 0x8aa0b8,
+      transparent: true,
+      opacity: 0.07,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.mistPatches = [];
+    for (let i = 0; i < 18; i++) {
+      const w = 2.5 + Math.random() * 3.5;
+      const d = 1.5 + Math.random() * 2.5;
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mistMat.clone());
+      patch.rotation.x = -Math.PI / 2;
+      patch.position.set(
+        (Math.random() - 0.5) * 20,
+        -1.4 + Math.random() * 0.6,
+        (Math.random() - 0.5) * 20
+      );
+      patch.userData.driftSpeed = 0.008 + Math.random() * 0.012;
+      patch.userData.driftAngle = Math.random() * Math.PI * 2;
+      this.group.add(patch);
+      this.mistPatches.push(patch);
+    }
+    // Point mist for depth — smaller count, larger size
+    const count = 200;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 1] = -1.5 + Math.random() * 2;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+      positions[i * 3] = (Math.random() - 0.5) * 22;
+      positions[i * 3 + 1] = -1.2 + Math.random() * 1.5;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 22;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     this.mistGeo = geo;
-    const mat = new THREE.PointsMaterial({
-      color: 0x7890a0,
-      size: 0.15,
+    this.group.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0x8aa8c0,
+      size: 0.5,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.04,
       depthWrite: false,
-    });
-    this.group.add(new THREE.Points(geo, mat));
+    })));
   }
 
   _update(t) {
@@ -223,21 +345,55 @@ export class HumeWorld extends BaseWorld {
     this.islands.forEach((isle, i) => {
       const bob = Math.sin(t * 0.4 + i * 1.3) * 0.07;
       isle.island.position.y = isle.baseY + bob;
-      isle.obj.position.y = isle.baseY + 0.4 + bob;
-      isle.light.position.y = isle.baseY + 0.5 + bob;
-
-      // Impression objects rotate
-      isle.obj.rotation.y = t * 0.5 + i;
-      isle.light.intensity = 0.8 + 0.3 * Math.sin(t * 1.5 + i);
+      if (isle.light) {
+        isle.light.position.y = isle.baseY + 0.5 + bob;
+        isle.light.intensity = 0.8 + 0.3 * Math.sin(t * 1.5 + i);
+      }
+      // Only rotate objects that support it (not groups/lines)
+      if (isle.obj && isle.obj.rotation && isle.label !== 'Cold') {
+        isle.obj.rotation.y = t * 0.5 + i;
+      }
     });
 
-    // Mist drift
-    const pos = this.mistGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      pos.array[i * 3] += Math.sin(t * 0.1 + i) * 0.003;
-      if (pos.array[i * 3] > 10) pos.array[i * 3] = -10;
+    // Flame particles rise and reset
+    if (this.flameParticleGeos) {
+      this.flameParticleGeos.forEach(({ geo, cx, cy, cz }) => {
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          pos.array[i*3+1] += 0.012;
+          pos.array[i*3]   += (Math.random()-0.5)*0.005;
+          if (pos.array[i*3+1] > cy + 1.2) {
+            pos.array[i*3]   = cx + (Math.random()-0.5)*0.3;
+            pos.array[i*3+1] = cy + 0.25;
+            pos.array[i*3+2] = cz + (Math.random()-0.5)*0.3;
+          }
+        }
+        pos.needsUpdate = true;
+      });
     }
-    pos.needsUpdate = true;
+
+    // Sweetness orbiters circle
+    if (this.sweetnessOrbiters) {
+      this.sweetnessOrbiters.forEach(({ orb, baseA, cx, cy, cz }) => {
+        const a = baseA + t * 1.2;
+        orb.position.set(cx + Math.cos(a)*0.52, cy, cz + Math.sin(a)*0.52);
+      });
+    }
+
+    // Thunder bolt flicker
+    if (this.boltMat) {
+      this.boltMat.opacity = 0.5 + 0.5 * Math.abs(Math.sin(t * 2.5 + Math.sin(t * 7)));
+    }
+
+    // Mist billboard patches drift slowly
+    if (this.mistPatches) {
+      this.mistPatches.forEach(p => {
+        p.position.x += Math.cos(p.userData.driftAngle) * p.userData.driftSpeed;
+        p.position.z += Math.sin(p.userData.driftAngle) * p.userData.driftSpeed;
+        if (Math.abs(p.position.x) > 12) p.userData.driftAngle = Math.PI - p.userData.driftAngle;
+        if (Math.abs(p.position.z) > 12) p.userData.driftAngle = -p.userData.driftAngle;
+      });
+    }
 
     // Bridges sway
     this.bridges.forEach((b, i) => {

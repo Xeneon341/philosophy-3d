@@ -182,16 +182,22 @@
         transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
         z-index: 30;
         overflow-y: auto;
-        /* Pass mousedown through so drag starts on canvas;
-           click/scroll still work on the panel content */
-        pointer-events: all;
+        /* Panel itself is click-through — drag on canvas works anywhere.
+           Children re-enable pointer events for actual interaction. */
+        pointer-events: none;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        /* Prevent text highlight while dragging through the panel */
         user-select: none;
         -webkit-user-select: none;
       }
       #concept-panel.visible { transform: translateX(0); }
+
+      /* Re-enable pointer events on interactive children */
+      #concept-close,
+      #concept-title,
+      #concept-body {
+        pointer-events: all;
+      }
 
       #concept-close {
         position: absolute;
@@ -217,12 +223,17 @@
         padding-bottom: 1rem;
         border-bottom: 1px solid #c8a96e22;
         line-height: 1.4;
+        user-select: text;
+        -webkit-user-select: text;
       }
 
       #concept-body {
         color: #ccc;
         font-size: 0.88rem;
         line-height: 1.85;
+        user-select: text;
+        -webkit-user-select: text;
+        overflow-y: auto;
       }
       #concept-body p {
         margin-bottom: 1.2rem;
@@ -257,7 +268,7 @@
 
     <div id="title-screen">
       <h1>Philosophia</h1>
-      <p>Western Thought &middot; 600 BCE &mdash; 1951 CE</p>
+      <p>Western Thought &middot; 428 BC &mdash; AD 1984</p>
       <button id="enter-btn">Enter the Universe</button>
     </div>
 

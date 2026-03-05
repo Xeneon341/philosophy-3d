@@ -8,6 +8,7 @@ export class HotspotManager {
     this.group = group;
     this.onActivate = onActivate;
     this.hotspots = [];
+    this._haloCache = null;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.hoveredHotspot = null;
@@ -17,6 +18,7 @@ export class HotspotManager {
   }
 
   add(position, data) {
+    this._haloCache = null; // invalidate cache on add
     // Outer pulsing ring
     const ringGeo = new THREE.RingGeometry(0.12, 0.16, 32);
     const ringMat = new THREE.MeshBasicMaterial({
@@ -77,8 +79,8 @@ export class HotspotManager {
     this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const meshes = this.hotspots.map(h => h.halo);
-    const hits = this.raycaster.intersectObjects(meshes, false);
+    if (!this._haloCache) this._haloCache = this.hotspots.map(h => h.halo);
+    const hits = this.raycaster.intersectObjects(this._haloCache, false);
 
     // Reset
     this.hotspots.forEach(h => {
@@ -123,5 +125,6 @@ export class HotspotManager {
     this.disable();
     this.hotspots.forEach(h => this.group.remove(h.pivot));
     this.hotspots = [];
+    this._haloCache = null;
   }
 }

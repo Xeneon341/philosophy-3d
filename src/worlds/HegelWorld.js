@@ -66,88 +66,118 @@ export class HegelWorld extends BaseWorld {
   _buildHelix() {
     this.helixMeshes = [];
     const LEVELS = 8;
-    const HEIGHT_PER_LEVEL = 2;
+    const HEIGHT_PER_LEVEL = 2.2;
+    const RADIUS = 1.8; // helix radius
 
     for (let level = 0; level < LEVELS; level++) {
-      const t = level / LEVELS;
+      const t = level / (LEVELS - 1);
       const baseY = level * HEIGHT_PER_LEVEL - 6;
-      const complexity = 0.3 + t * 0.7; // more complex higher up
 
-      // Thesis — solid shape
-      const thesisGeo = new THREE.IcosahedronGeometry(0.3 + t * 0.1, Math.floor(complexity * 2));
+      // Thesis angle spirals around the axis (one side of the helix)
+      const thesisAngle = (level / LEVELS) * Math.PI * 2;
+      const antiAngle = thesisAngle + Math.PI; // opposite side
+
+      const tx = Math.cos(thesisAngle) * RADIUS;
+      const tz = Math.sin(thesisAngle) * RADIUS;
+      const ax = Math.cos(antiAngle) * RADIUS;
+      const az = Math.sin(antiAngle) * RADIUS;
+
+      // Thesis — solid glowing sphere (the positive moment)
+      const thesisSize = 0.28 + t * 0.12;
       const thesisMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(0.6 - t * 0.2, 0.8, 0.4 + t * 0.2),
-        emissive: new THREE.Color().setHSL(0.6 - t * 0.2, 0.8, 0.15),
-        emissiveIntensity: 0.5,
+        color: 0xe8a030,
+        emissive: 0x804010,
+        emissiveIntensity: 0.7,
         roughness: 0.3,
+        metalness: 0.2,
       });
-      const thesis = new THREE.Mesh(thesisGeo, thesisMat);
-      thesis.position.set(-1.2, baseY, 0);
+      const thesis = new THREE.Mesh(new THREE.SphereGeometry(thesisSize, 12, 12), thesisMat);
+      thesis.position.set(tx, baseY, tz);
       this.group.add(thesis);
 
-      // Antithesis — hollow/wireframe
-      const antiGeo = new THREE.IcosahedronGeometry(0.3 + t * 0.1, 0);
-      const antiMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color().setHSL(0.1 + t * 0.1, 0.9, 0.5),
-        wireframe: true,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const anti = new THREE.Mesh(antiGeo, antiMat);
-      anti.position.set(1.2, baseY, 0);
+      // Antithesis — wireframe icosahedron (the negation)
+      const antiSize = 0.28 + t * 0.12;
+      const anti = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(antiSize, 0),
+        new THREE.MeshBasicMaterial({ color: 0x40c8e0, wireframe: true, transparent: true, opacity: 0.8 })
+      );
+      anti.position.set(ax, baseY, az);
       this.group.add(anti);
 
-      // Synthesis — more complex, between and above
+      // Synthesis — golden icosahedron midway up, on axis between them
+      // Sits between thesis and antithesis, elevated by half a level
       if (level < LEVELS - 1) {
-        const synGeo = new THREE.IcosahedronGeometry(0.35 + t * 0.15, Math.ceil(complexity * 2));
-        const synMat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color().setHSL(0.08 + t * 0.05, 0.9, 0.5 + t * 0.1),
-          emissive: new THREE.Color().setHSL(0.08, 0.8, 0.2),
-          emissiveIntensity: 0.6,
-          roughness: 0.2,
-          metalness: 0.3,
-        });
-        const syn = new THREE.Mesh(synGeo, synMat);
-        syn.position.set(0, baseY + HEIGHT_PER_LEVEL * 0.5, 0);
-        this.group.add(syn);
-        this.helixMeshes.push({ thesis, anti, syn, level });
-
-        // Light at synthesis point
-        const light = new THREE.PointLight(
-          new THREE.Color().setHSL(0.08, 0.9, 0.6),
-          0.8,
-          3
+        const synAngle = thesisAngle + Math.PI * 0.5; // 90° between, spiraling upward
+        const synR = RADIUS * 0.5;
+        const syn = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.22 + t * 0.14, 1),
+          new THREE.MeshStandardMaterial({
+            color: 0xffe060,
+            emissive: 0x806010,
+            emissiveIntensity: 0.8,
+            roughness: 0.15,
+            metalness: 0.5,
+          })
         );
+        syn.position.set(Math.cos(synAngle)*synR, baseY + HEIGHT_PER_LEVEL * 0.5, Math.sin(synAngle)*synR);
+        this.group.add(syn);
+        this.helixMeshes.push({ thesis, anti, syn, level, thesisAngle });
+
+        // Warm light at each synthesis
+        const light = new THREE.PointLight(0xffaa30, 0.7, 4);
         light.position.copy(syn.position);
         this.group.add(light);
+      } else {
+        this.helixMeshes.push({ thesis, anti, syn: null, level, thesisAngle });
       }
 
-      // Tension lines between thesis and antithesis
-      const tensionGeo = new THREE.BufferGeometry().setFromPoints([
-        thesis.position.clone(),
-        anti.position.clone(),
-      ]);
-      const tensionMat = new THREE.LineBasicMaterial({
-        color: 0xffa040,
-        transparent: true,
-        opacity: 0.3,
-      });
-      this.group.add(new THREE.Line(tensionGeo, tensionMat));
+      // Tension line between thesis and antithesis through center
+      this.group.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(tx, baseY, tz),
+          new THREE.Vector3(ax, baseY, az),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0xff8020, transparent: true, opacity: 0.25 })
+      ));
+
+      // Helix strand lines connecting this level to next (thesis strand)
+      if (level < LEVELS - 1) {
+        const nextAngle = ((level + 1) / LEVELS) * Math.PI * 2;
+        const nx = Math.cos(nextAngle) * RADIUS;
+        const nz = Math.sin(nextAngle) * RADIUS;
+        const nY = (level + 1) * HEIGHT_PER_LEVEL - 6;
+
+        // Thesis strand
+        const pts1 = [];
+        for (let s = 0; s <= 10; s++) {
+          const f = s / 10;
+          const a = thesisAngle + f * (nextAngle - thesisAngle + Math.PI * 2 / LEVELS);
+          const y = baseY + f * HEIGHT_PER_LEVEL;
+          pts1.push(new THREE.Vector3(Math.cos(a)*RADIUS, y, Math.sin(a)*RADIUS));
+        }
+        this.group.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(pts1),
+          new THREE.LineBasicMaterial({ color: 0xe8a030, transparent: true, opacity: 0.35 })
+        ));
+
+        // Antithesis strand
+        const pts2 = pts1.map(p => new THREE.Vector3(-p.x, p.y, -p.z));
+        this.group.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(pts2),
+          new THREE.LineBasicMaterial({ color: 0x40c8e0, transparent: true, opacity: 0.35 })
+        ));
+      }
     }
 
-    // Vertical spine
+    // Central vertical spine (the Absolute, the axis of history)
     const spinePts = [];
-    for (let i = 0; i < 40; i++) {
-      const y = -6 + (i / 39) * LEVELS * HEIGHT_PER_LEVEL;
-      spinePts.push(new THREE.Vector3(0, y, 0));
+    for (let i = 0; i < 60; i++) {
+      spinePts.push(new THREE.Vector3(0, -6 + (i / 59) * LEVELS * HEIGHT_PER_LEVEL, 0));
     }
-    const spineGeo = new THREE.BufferGeometry().setFromPoints(spinePts);
-    const spineMat = new THREE.LineBasicMaterial({
-      color: 0xffa040,
-      transparent: true,
-      opacity: 0.2,
-    });
-    this.group.add(new THREE.Line(spineGeo, spineMat));
+    this.group.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(spinePts),
+      new THREE.LineBasicMaterial({ color: 0xffcc60, transparent: true, opacity: 0.15 })
+    ));
   }
 
   _buildDialecticLevels() {
@@ -155,6 +185,64 @@ export class HegelWorld extends BaseWorld {
     this.ascendLight = new THREE.PointLight(0xffcc44, 0, 20);
     this.ascendLight.position.set(0, 10, 0);
     this.group.add(this.ascendLight);
+
+    // Circular dais at the base — where the helix begins
+    const daisMat = new THREE.MeshStandardMaterial({ color: 0x1a0a04, roughness: 0.85, emissive: 0x3a0800, emissiveIntensity: 0.1 });
+    const dais = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.0, 0.3, 32), daisMat);
+    dais.position.set(0, -6.15, 0);
+    this.group.add(dais);
+
+    // Concentric rings inlaid on the dais (thesis / antithesis / synthesis circles)
+    const ringMat = new THREE.LineBasicMaterial({ color: 0xff8020, transparent: true, opacity: 0.4 });
+    [1.5, 2.8, 4.0].forEach(r => {
+      const pts = [];
+      for (let i = 0; i <= 64; i++) {
+        const a = (i / 64) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a)*r, -5.98, Math.sin(a)*r));
+      }
+      this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ringMat));
+    });
+
+    // Radiating spokes on the dais
+    const spokeMat = new THREE.LineBasicMaterial({ color: 0xff6010, transparent: true, opacity: 0.25 });
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, -5.98, 0),
+        new THREE.Vector3(Math.cos(a)*4.0, -5.98, Math.sin(a)*4.0),
+      ]);
+      this.group.add(new THREE.Line(geo, spokeMat));
+    }
+
+    // 6 standing stone pillars around the dais
+    const pillarMat = makeStepMaterial(0.08);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 3.5, 7), pillarMat);
+      pillar.position.set(Math.cos(a)*4.2, -4.5, Math.sin(a)*4.2);
+      this.group.add(pillar);
+    }
+
+    // Ring of embers at the very base
+    const emberCount = 80;
+    const ePos = new Float32Array(emberCount * 3);
+    for (let i = 0; i < emberCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 3.5 + Math.random() * 1.5;
+      ePos[i*3]   = Math.cos(a) * r;
+      ePos[i*3+1] = -5.9 + Math.random() * 0.2;
+      ePos[i*3+2] = Math.sin(a) * r;
+    }
+    const eGeo = new THREE.BufferGeometry();
+    eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+    this.group.add(new THREE.Points(eGeo, new THREE.PointsMaterial({
+      color: 0xff6010, size: 0.06, transparent: true, opacity: 0.7, depthWrite: false,
+    })));
+
+    // Lava glow at the base
+    const baseGlow = new THREE.PointLight(0xff4000, 2.5, 10);
+    baseGlow.position.set(0, -6, 0);
+    this.group.add(baseGlow);
   }
 
   _buildParticles() {

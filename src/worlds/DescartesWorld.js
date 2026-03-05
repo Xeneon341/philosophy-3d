@@ -72,10 +72,52 @@ export class DescartesWorld extends BaseWorld {
     this.group.add(desk);
     this.studyObjects.push(desk);
 
-    // Candle flame
+    // Desk legs
+    [[0, 0], [1.8, 0], [0, 0.85], [1.8, 0.85]].forEach(([dx, dz]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.06), woodMat);
+      leg.position.set(0.1 + dx, -1.0, -0.4 + dz);
+      this.group.add(leg);
+      this.studyObjects.push(leg);
+    });
+
+    // Chair
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.55), woodMat);
+    chairSeat.position.set(-0.5, -0.75, 0.5);
+    this.group.add(chairSeat);
+    this.studyObjects.push(chairSeat);
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.65, 0.05), woodMat);
+    chairBack.position.set(-0.5, -0.45, 0.25);
+    this.group.add(chairBack);
+    this.studyObjects.push(chairBack);
+
+    // Books stacked on desk
+    [[0.2, 0.06], [0.5, 0.1], [0.8, 0.08]].forEach(([bx, bh], bi) => {
+      const bookMat = makeWoodMaterial();
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.22, bh, 0.3), bookMat);
+      book.position.set(1.2 + bx * 0.2, -0.4 + bi * bh * 0.5, -0.1);
+      book.rotation.y = (Math.random() - 0.5) * 0.2;
+      this.group.add(book);
+      this.studyObjects.push(book);
+    });
+
+    // Quill
+    const quillMat = new THREE.MeshBasicMaterial({ color: 0xf0e8c0 });
+    const quill = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.002, 0.4, 4), quillMat);
+    quill.position.set(0.6, -0.42, 0.1);
+    quill.rotation.z = 0.4;
+    this.group.add(quill);
+    this.studyObjects.push(quill);
+
+    // Candle stick + flame
+    const stickMat = new THREE.MeshStandardMaterial({ color: 0xf0e8c0, roughness: 0.8 });
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), stickMat);
+    stick.position.set(0.5, -0.62, 0);
+    this.group.add(stick);
+    this.studyObjects.push(stick);
+
     const candleMat = new THREE.MeshBasicMaterial({ color: 0xffcc44 });
     this.candle = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), candleMat);
-    this.candle.position.set(0.5, -0.2, 0);
+    this.candle.position.set(0.5, -0.3, 0);
     this.group.add(this.candle);
     this.studyObjects.push(this.candle);
 
@@ -144,15 +186,38 @@ export class DescartesWorld extends BaseWorld {
     this.group.add(gridHelper);
     this.gridHelper = gridHelper;
 
-    // Cartesian objects reassembling
+    // Tick marks on axes
+    this.axisTicks = [];
+    dirs.forEach((dir, di) => {
+      const tickColor = axisColors[di];
+      for (let n = -4; n <= 4; n++) {
+        if (n === 0) continue;
+        const tickPts = [];
+        const center = dir.clone().multiplyScalar(n);
+        // Small perpendicular tick
+        const perp = di === 0 ? new THREE.Vector3(0,1,0) : di === 1 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(1,0,0);
+        tickPts.push(center.clone().addScaledVector(perp, -0.08));
+        tickPts.push(center.clone().addScaledVector(perp,  0.08));
+        const tickGeo = new THREE.BufferGeometry().setFromPoints(tickPts);
+        const tickMat = new THREE.LineBasicMaterial({ color: tickColor, transparent: true, opacity: 0 });
+        const tick = new THREE.Line(tickGeo, tickMat);
+        this.group.add(tick);
+        this.axisTicks.push(tick);
+      }
+    });
+
+    // Cartesian objects reassembling at clean grid positions
     this.reassembledObjects = [];
     const shapes = [
-      new THREE.BoxGeometry(0.4, 0.4, 0.4),
-      new THREE.SphereGeometry(0.25, 8, 8),
-      new THREE.CylinderGeometry(0.15, 0.2, 0.5, 8),
+      { geo: new THREE.BoxGeometry(0.4, 0.4, 0.4),     pos: [-2,  0, -2] },
+      { geo: new THREE.SphereGeometry(0.25, 10, 10),   pos: [ 2,  0, -2] },
+      { geo: new THREE.CylinderGeometry(0.15,0.2,0.5,8), pos: [ 0,  2, -2] },
+      { geo: new THREE.TetrahedronGeometry(0.28, 0),    pos: [-2,  2, -2] },
+      { geo: new THREE.OctahedronGeometry(0.24, 0),     pos: [ 2,  2, -2] },
+      { geo: new THREE.IcosahedronGeometry(0.22, 0),    pos: [ 0, -1, -3] },
     ];
 
-    shapes.forEach((geo, i) => {
+    shapes.forEach(({ geo, pos }, i) => {
       const mat = new THREE.MeshStandardMaterial({
         color: 0x8ab4d4,
         transparent: true,
@@ -163,7 +228,7 @@ export class DescartesWorld extends BaseWorld {
         emissiveIntensity: 0.5,
       });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(-2 + i * 2, 0, -2);
+      mesh.position.set(...pos);
       this.group.add(mesh);
       this.reassembledObjects.push(mesh);
     });
@@ -300,6 +365,9 @@ export class DescartesWorld extends BaseWorld {
     this.axes.forEach((axis, i) => {
       axis.material.opacity = axisOpacity;
     });
+    if (this.axisTicks) {
+      this.axisTicks.forEach(tick => { tick.material.opacity = axisOpacity * 0.7; });
+    }
     if (this.gridHelper) this.gridHelper.material.opacity = axisOpacity * 0.6;
 
     // Reassembled objects

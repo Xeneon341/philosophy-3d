@@ -28,15 +28,17 @@ export class OrbitControls {
     this._onWheel = this._onWheel.bind(this);
     this._onTouchStart = this._onTouchStart.bind(this);
     this._onTouchMove = this._onTouchMove.bind(this);
+    this._onTouchEnd = this._onTouchEnd.bind(this);
 
-    // mousedown on canvas, but move/up on document so dragging works
-    // over UI panels (concept drawer, etc.) without interruption
+    this._posVec = new THREE.Vector3(); // reused every frame — no per-frame allocation
+
     domElement.addEventListener('mousedown', this._onMouseDown);
     document.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('mouseup', this._onMouseUp);
     domElement.addEventListener('wheel', this._onWheel, { passive: true });
     domElement.addEventListener('touchstart', this._onTouchStart, { passive: true });
     document.addEventListener('touchmove', this._onTouchMove, { passive: true });
+    document.addEventListener('touchend', this._onTouchEnd, { passive: true });
   }
 
   _onMouseDown(e) {
@@ -80,13 +82,15 @@ export class OrbitControls {
     this._targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this._targetSpherical.phi));
   }
 
+  _onTouchEnd() { this._isDragging = false; }
+
   update() {
     this._spherical.theta += (this._targetSpherical.theta - this._spherical.theta) * this.dampingFactor;
     this._spherical.phi += (this._targetSpherical.phi - this._spherical.phi) * this.dampingFactor;
     this._spherical.radius += (this._targetSpherical.radius - this._spherical.radius) * this.dampingFactor;
 
-    const pos = new THREE.Vector3().setFromSpherical(this._spherical).add(this.target);
-    this.camera.position.copy(pos);
+    this._posVec.setFromSpherical(this._spherical).add(this.target);
+    this.camera.position.copy(this._posVec);
     this.camera.lookAt(this.target);
   }
 
@@ -102,5 +106,6 @@ export class OrbitControls {
     document.removeEventListener('mouseup', this._onMouseUp);
     this.domElement.removeEventListener('wheel', this._onWheel);
     document.removeEventListener('touchmove', this._onTouchMove);
+    document.removeEventListener('touchend', this._onTouchEnd);
   }
 }

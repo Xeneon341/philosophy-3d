@@ -184,6 +184,19 @@ export class Universe {
     const map = {};
     PHILOSOPHERS.forEach(p => { map[p.id] = p; });
 
+    // Single shared material for all lines — one shader compile, one uniform update
+    const sharedLineMat = new THREE.ShaderMaterial({
+      vertexShader:   lineVertexShader,
+      fragmentShader: lineFragmentShader,
+      uniforms: {
+        time:  { value: 0 },
+        color: { value: new THREE.Color(0xc8a96e) },
+      },
+      transparent: true,
+      depthWrite:  false,
+    });
+    this.lineMaterials.push(sharedLineMat);
+
     INFLUENCES.forEach(([fromId, toId]) => {
       const from = map[fromId];
       const to   = map[toId];
@@ -210,19 +223,7 @@ export class Universe {
       geo.setAttribute('position',    new THREE.BufferAttribute(positions, 3));
       geo.setAttribute('lineProgress', new THREE.BufferAttribute(progress, 1));
 
-      const mat = new THREE.ShaderMaterial({
-        vertexShader:   lineVertexShader,
-        fragmentShader: lineFragmentShader,
-        uniforms: {
-          time:  { value: 0 },
-          color: { value: new THREE.Color(0xc8a96e) },
-        },
-        transparent: true,
-        depthWrite:  false,
-      });
-
-      this.group.add(new THREE.Line(geo, mat));
-      this.lineMaterials.push(mat);
+      this.group.add(new THREE.Line(geo, sharedLineMat));
     });
   }
 
@@ -308,9 +309,9 @@ export class Universe {
       });
     });
 
-    // ── Hover raycasting ──
+    // ── Hover raycasting — false = don't recurse into rings/moons ──
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const hits = this.raycaster.intersectObjects(this.nodeMeshes, true);
+    const hits = this.raycaster.intersectObjects(this.nodeMeshes, false);
 
     this.nodeMeshes.forEach(m => {
       m.material.uniforms.hovered.value = 0;

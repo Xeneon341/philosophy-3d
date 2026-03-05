@@ -2,7 +2,7 @@ export const PHILOSOPHERS = [
   {
     id: 'plato',
     name: 'Plato',
-    dates: '428 – 348 BCE',
+    dates: '428 – 348 BC',
     school: 'Idealism',
     quote: 'The measure of a man is what he does with power.',
     color: 0xf0c060,
@@ -12,7 +12,7 @@ export const PHILOSOPHERS = [
   {
     id: 'aristotle',
     name: 'Aristotle',
-    dates: '384 – 322 BCE',
+    dates: '384 – 322 BC',
     school: 'Empiricism / Virtue Ethics',
     quote: 'The whole is more than the sum of its parts.',
     color: 0x7dba84,
@@ -20,9 +20,19 @@ export const PHILOSOPHERS = [
     size: 1.0,
   },
   {
+    id: 'aquinas',
+    name: 'Aquinas',
+    dates: 'AD 1225 – 1274',
+    school: 'Scholasticism / Natural Theology',
+    quote: 'The things that we love tell us what we are.',
+    color: 0xc8a96e,
+    position: [-2.5, 0.5, -3],
+    size: 1.0,
+  },
+  {
     id: 'descartes',
     name: 'Descartes',
-    dates: '1596 – 1650 CE',
+    dates: 'AD 1596 – 1650',
     school: 'Rationalism',
     quote: 'I think, therefore I am.',
     color: 0x8ab4d4,
@@ -32,7 +42,7 @@ export const PHILOSOPHERS = [
   {
     id: 'spinoza',
     name: 'Spinoza',
-    dates: '1632 – 1677 CE',
+    dates: 'AD 1632 – 1677',
     school: 'Rationalism / Pantheism',
     quote: 'God or Nature — the one and the same eternal infinite being.',
     color: 0xa78bfa,
@@ -42,7 +52,7 @@ export const PHILOSOPHERS = [
   {
     id: 'hume',
     name: 'Hume',
-    dates: '1711 – 1776 CE',
+    dates: 'AD 1711 – 1776',
     school: 'Empiricism / Skepticism',
     quote: 'Reason is, and ought only to be, the slave of the passions.',
     color: 0x7ec8e3,
@@ -52,7 +62,7 @@ export const PHILOSOPHERS = [
   {
     id: 'kant',
     name: 'Kant',
-    dates: '1724 – 1804 CE',
+    dates: 'AD 1724 – 1804',
     school: 'Transcendental Idealism',
     quote: 'Act only according to that maxim whereby you can at the same time will that it should become a universal law.',
     color: 0xe8e0c8,
@@ -62,7 +72,7 @@ export const PHILOSOPHERS = [
   {
     id: 'hegel',
     name: 'Hegel',
-    dates: '1770 – 1831 CE',
+    dates: 'AD 1770 – 1831',
     school: 'Absolute Idealism',
     quote: 'The owl of Minerva spreads its wings only with the falling of the dusk.',
     color: 0xf97316,
@@ -72,7 +82,7 @@ export const PHILOSOPHERS = [
   {
     id: 'nietzsche',
     name: 'Nietzsche',
-    dates: '1844 – 1900 CE',
+    dates: 'AD 1844 – 1900',
     school: 'Existentialism / Nihilism',
     quote: 'That which does not kill us makes us stronger.',
     color: 0xe74c3c,
@@ -82,12 +92,22 @@ export const PHILOSOPHERS = [
   {
     id: 'wittgenstein',
     name: 'Wittgenstein',
-    dates: '1889 – 1951 CE',
+    dates: 'AD 1889 – 1951',
     school: 'Analytic Philosophy',
     quote: 'Whereof one cannot speak, thereof one must be silent.',
     color: 0xf0f0f0,
     position: [2, 2, 2.5],
     size: 0.85,
+  },
+  {
+    id: 'foucault',
+    name: 'Foucault',
+    dates: 'AD 1926 – 1984',
+    school: 'Poststructuralism / Postmodernism',
+    quote: 'Where there is power, there is resistance.',
+    color: 0x4a7a9b,
+    position: [-0.5, -1.5, -1.5],
+    size: 0.95,
   },
 ];
 
@@ -96,10 +116,14 @@ export const INFLUENCES = [
   ['plato', 'aristotle'],
   ['plato', 'descartes'],
   ['aristotle', 'hume'],
+  ['aristotle', 'aquinas'],
   ['descartes', 'spinoza'],
   ['descartes', 'kant'],
   ['hume', 'kant'],
   ['kant', 'hegel'],
   ['hegel', 'nietzsche'],
   ['wittgenstein', 'hume'],
+  ['aquinas', 'descartes'],
+  ['nietzsche', 'foucault'],
+  ['hegel', 'foucault'],
 ];

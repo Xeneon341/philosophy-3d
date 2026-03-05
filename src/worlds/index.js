@@ -7,6 +7,8 @@ import { KantWorld } from './KantWorld.js';
 import { HegelWorld } from './HegelWorld.js';
 import { NietzscheWorld } from './NietzscheWorld.js';
 import { WittgensteinWorld } from './WittgensteinWorld.js';
+import { AquinasWorld } from './AquinasWorld.js';
+import { FoucaultWorld } from './FoucaultWorld.js';
 
 export const WORLD_CLASSES = {
   plato: PlatoWorld,
@@ -18,4 +20,6 @@ export const WORLD_CLASSES = {
   hegel: HegelWorld,
   nietzsche: NietzscheWorld,
   wittgenstein: WittgensteinWorld,
+  aquinas: AquinasWorld,
+  foucault: FoucaultWorld,
 };

@@ -14,14 +14,11 @@ import { HotspotPanel } from './ui/HotspotPanel.js';
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: 'high-performance',
-  logarithmicDepthBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.getElementById('app').appendChild(renderer.domElement);
 
 // ── Post-processing ───────────────────────────────────────────────────────────
@@ -110,13 +107,14 @@ backBtn.addEventListener('click', async () => {
     currentWorld.hide();
     currentWorld = null;
   }
-  scene.fog = new THREE.FogExp2(0x000000, 0.015);
+  // Reset all state while screen is black — no flash
   camera.fov = 65;
   camera.updateProjectionMatrix();
   controls.minDistance = 3;
   controls.maxDistance = 16;
   controls.setPosition(0, Math.PI / 2.5, 10);
-  bloomPass.strength = 0.9;  // back to universe bloom
+  bloomPass.strength = 0.9;
+  scene.fog = new THREE.FogExp2(0x000000, 0.015);
   worldHint.classList.remove('visible');
   instructions.style.display = '';
   universe.show();
@@ -148,15 +146,19 @@ async function enterPhilosopher(philosopherData) {
       controls.minDistance = 2;
       controls.maxDistance = 12;
 
-      const WorldClass = WORLD_CLASSES[philosopherData.id];
-      if (WorldClass && !worldInstances[philosopherData.id]) {
-        worldInstances[philosopherData.id] = new WorldClass(scene, camera, (data) => hotspotPanel.show(data.title, data.body));
-      }
-      currentWorld = worldInstances[philosopherData.id] || null;
-      if (currentWorld) currentWorld.show(renderer.domElement);
+      // Defer world build to next frame so the fade renders first,
+      // preventing a visible freeze on first entry
+      requestAnimationFrame(() => {
+        const WorldClass = WORLD_CLASSES[philosopherData.id];
+        if (WorldClass && !worldInstances[philosopherData.id]) {
+          worldInstances[philosopherData.id] = new WorldClass(scene, camera, (data) => hotspotPanel.show(data.title, data.body));
+        }
+        currentWorld = worldInstances[philosopherData.id] || null;
+        if (currentWorld) currentWorld.show(renderer.domElement);
+      });
 
       worldTitle.textContent = philosopherData.name.toUpperCase();
-      bloomPass.strength = 1.2;  // richer bloom inside worlds
+      bloomPass.strength = 1.2;
     }
   );
 

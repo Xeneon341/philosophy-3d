@@ -9,6 +9,7 @@ export class NietzscheWorld extends BaseWorld {
     this._buildEternalSpiral();
     this._buildFires();
     this._buildSkyDome();
+    this._buildGodIsDead();
     this._buildHotspots();
     this._buildParticles();
     this._buildZarathustraMountain();
@@ -219,6 +220,59 @@ export class NietzscheWorld extends BaseWorld {
     this.group.add(new THREE.Points(geo, mat));
   }
 
+  _buildGodIsDead() {
+    // A toppled cross/monolith — cracked, half-buried, dark
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x2a2028, roughness: 0.9, metalness: 0.05 });
+    const crackedMat = new THREE.ShaderMaterial({
+      vertexShader: `varying vec3 vW; varying vec3 vN; void main(){ vW=(modelMatrix*vec4(position,1.0)).xyz; vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `
+        varying vec3 vW; varying vec3 vN;
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5); }
+        float noise(vec2 p){ vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f);
+          return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+        void main(){
+          float n = noise(vW.xy*2.0)*0.4 + noise(vW.xz*3.5)*0.3;
+          vec3 col = vec3(0.14+n*0.06, 0.12+n*0.05, 0.15+n*0.06);
+          // Crack lines
+          float crack = smoothstep(0.03,0.0,abs(noise(vW.xy*4.0+vec2(3.1,7.4))-0.5)*0.5);
+          col = mix(col, vec3(0.04,0.03,0.04), crack * 0.8);
+          float diff = max(dot(vN, normalize(vec3(0.5,1.0,0.3))),0.0)*0.5+0.3;
+          gl_FragColor = vec4(col*diff, 1.0);
+        }
+      `,
+      side: THREE.FrontSide,
+    });
+
+    // Main upright slab — toppled at an angle
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(0.55, 3.2, 0.4), crackedMat);
+    slab.position.set(2, -0.4, -3.5);
+    slab.rotation.set(Math.PI/2 - 0.3, 0.4, 0.15); // toppled
+    this.group.add(slab);
+
+    // Crossbar
+    const crossBar = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 0.38), crackedMat);
+    crossBar.position.set(2, 0.0, -3.5);
+    crossBar.rotation.copy(slab.rotation);
+    this.group.add(crossBar);
+
+    // Broken base stump still standing
+    const stump = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.45), stoneMat);
+    stump.position.set(2, -1.05, -3.5);
+    this.group.add(stump);
+
+    // Half-buried inscription block
+    const inscription = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.6), stoneMat);
+    inscription.position.set(2, -1.48, -3.2);
+    inscription.rotation.y = 0.15;
+    this.group.add(inscription);
+
+    // Dark glow at the broken base
+    const deadLight = new THREE.PointLight(0x330022, 1.5, 4);
+    deadLight.position.set(2, -0.5, -3.5);
+    this.group.add(deadLight);
+    this.deadLight = deadLight;
+  }
+
   _buildZarathustraMountain() {
     // Distant mountain — procedural dark rock shader
     const geo = new THREE.ConeGeometry(5, 8, 12);
@@ -271,16 +325,44 @@ export class NietzscheWorld extends BaseWorld {
     mountain.position.set(0, 1, -15);
     this.group.add(mountain);
 
-    // Zarathustra figure (light figure at mountain crest)
-    const figGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 8);
-    const figMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.6,
+    // Zarathustra figure — large enough to read from z=6
+    const figGroup = new THREE.Group();
+    figGroup.position.set(0, 5.5, -15);
+
+    const figMat = new THREE.MeshBasicMaterial({ color: 0xffeedd, transparent: true, opacity: 0.75 });
+    // Body
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.6, 4, 8), figMat);
+    body.position.y = 0;
+    figGroup.add(body);
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), figMat);
+    head.position.y = 0.65;
+    figGroup.add(head);
+    // Arms raised (triumph)
+    [-1,1].forEach(side => {
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.35, 4, 6), figMat);
+      arm.position.set(side * 0.32, 0.25, 0);
+      arm.rotation.z = side * (Math.PI / 3);
+      figGroup.add(arm);
     });
-    this.zarathFigure = new THREE.Mesh(figGeo, figMat);
-    this.zarathFigure.position.set(0, 5.5, -15);
-    this.group.add(this.zarathFigure);
+    // Cloak billowing behind
+    const cloakMat = new THREE.MeshBasicMaterial({ color: 0xddbbaa, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    const cloak = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.1), cloakMat);
+    cloak.position.set(0, -0.1, 0.2);
+    cloak.rotation.x = 0.3;
+    figGroup.add(cloak);
+
+    this.zarathFigure = figGroup;
+    this.group.add(figGroup);
+
+    // Halo glow behind the figure
+    const halo = new THREE.Mesh(
+      new THREE.CircleGeometry(0.6, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffaa40, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false })
+    );
+    halo.position.set(0, 5.5, -15.15);
+    this.group.add(halo);
+    this.zarathHalo = halo;
   }
 
   _buildHotspots() {
@@ -359,7 +441,15 @@ export class NietzscheWorld extends BaseWorld {
 
     // Zarathustra glow pulse
     if (this.zarathFigure) {
-      this.zarathFigure.material.opacity = 0.4 + 0.3 * Math.sin(t * 1.5);
+      this.zarathFigure.traverse(c => {
+        if (c.material) c.material.opacity = 0.5 + 0.25 * Math.sin(t * 1.5);
+      });
+    }
+    if (this.zarathHalo) {
+      this.zarathHalo.material.opacity = 0.15 + 0.15 * Math.sin(t * 1.2);
+    }
+    if (this.deadLight) {
+      this.deadLight.intensity = 0.8 + 0.7 * Math.abs(Math.sin(t * 0.4));
     }
   }
 }

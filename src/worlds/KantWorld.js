@@ -8,6 +8,7 @@ export class KantWorld extends BaseWorld {
     this._buildColumns();
     this._buildCeiling();
     this._buildWindowsToWorld();
+    this._buildPhenomenalWorld();
     this._buildSealedDoor();
     this._buildMoralLaw();
     this._buildHotspots();
@@ -52,32 +53,22 @@ export class KantWorld extends BaseWorld {
 
   _buildFloor() {
     // Categorical Imperative tessellation on floor
-    const geo = new THREE.PlaneGeometry(12, 12, 40, 40);
+    const geo = new THREE.PlaneGeometry(12, 12, 16, 16);
     const mat = makeDarkStoneMaterial();
     const floor = new THREE.Mesh(geo, mat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -2;
     this.group.add(floor);
 
-    // Gold tessellation lines
-    this.moralLines = [];
+    // Gold tessellation lines — single LineSegments draw call
+    const gridPts = [];
     for (let i = -5; i <= 5; i++) {
-      const hGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-5, -1.98, i),
-        new THREE.Vector3(5, -1.98, i),
-      ]);
-      const vGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(i, -1.98, -5),
-        new THREE.Vector3(i, -1.98, 5),
-      ]);
-      const mat = new THREE.LineBasicMaterial({
-        color: 0xc8a96e,
-        transparent: true,
-        opacity: 0.3,
-      });
-      this.group.add(new THREE.Line(hGeo, mat));
-      this.group.add(new THREE.Line(vGeo, mat));
+      gridPts.push(new THREE.Vector3(-5, -1.98, i), new THREE.Vector3(5, -1.98, i));
+      gridPts.push(new THREE.Vector3(i, -1.98, -5), new THREE.Vector3(i, -1.98, 5));
     }
+    const gridGeo = new THREE.BufferGeometry().setFromPoints(gridPts);
+    const gridMat = new THREE.LineBasicMaterial({ color: 0xc8a96e, transparent: true, opacity: 0.3 });
+    this.group.add(new THREE.LineSegments(gridGeo, gridMat));
   }
 
   _buildColumns() {
@@ -98,7 +89,7 @@ export class KantWorld extends BaseWorld {
       const x = Math.cos(angle) * r;
       const z = Math.sin(angle) * r;
 
-      const geo = new THREE.CylinderGeometry(0.15, 0.18, 6, 8);
+      const geo = new THREE.CylinderGeometry(0.15, 0.18, 6, 6);
       const col = new THREE.Mesh(geo, colMat);
       col.position.set(x, 1, z);
       this.group.add(col);
@@ -113,7 +104,7 @@ export class KantWorld extends BaseWorld {
 
   _buildCeiling() {
     // Vaulted ceiling = Space and Time themselves
-    const geo = new THREE.SphereGeometry(6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const geo = new THREE.SphereGeometry(6, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
     this.ceilingMat = new THREE.ShaderMaterial({
       uniforms: { time: { value: 0 } },
       vertexShader: `
@@ -156,12 +147,12 @@ export class KantWorld extends BaseWorld {
     // Four stone walls with frosted windows cut into them
     this.windows = [];
     const wallMat = makeDarkStoneMaterial();
-    const glassMat = new THREE.MeshPhysicalMaterial({
+    const glassMat = new THREE.MeshStandardMaterial({
       color: 0x9aabcc,
       transparent: true,
-      opacity: 0.22,
-      roughness: 0.75,
-      transmission: 0.7,
+      opacity: 0.25,
+      roughness: 0.6,
+      metalness: 0.1,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
@@ -175,7 +166,7 @@ export class KantWorld extends BaseWorld {
 
     WALL_DEFS.forEach(({ x, z, ry }) => {
       // Full wall panel
-      const wall = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 7, 8, 6), wallMat);
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 7, 3, 3), wallMat);
       wall.position.set(x, 1.5, z);
       wall.rotation.y = ry;
       this.group.add(wall);
@@ -197,6 +188,60 @@ export class KantWorld extends BaseWorld {
       const winLight = new THREE.PointLight(0x7088cc, 0.6, 8);
       winLight.position.set(x + Math.sin(ry) * 3, 1.5, z + Math.cos(ry) * 3);
       this.group.add(winLight);
+    });
+  }
+
+  _buildPhenomenalWorld() {
+    // Impressionistic shapes visible through each window — blurred, warm, unknowable
+    this.phenomenaMats = [];
+    const WALL_DEFS = [
+      { x: 0,    z: -4.8, ry: 0 },
+      { x: 0,    z:  4.8, ry: Math.PI },
+      { x: -4.8, z:  0,   ry: Math.PI / 2 },
+      { x:  4.8, z:  0,   ry: -Math.PI / 2 },
+    ];
+    WALL_DEFS.forEach(({ x, z, ry }, wi) => {
+      const side = ry === 0 ? -1 : ry === Math.PI ? 1 : x < 0 ? 1 : -1;
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { time: { value: 0 }, idx: { value: wi } },
+        vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader: `
+          uniform float time; uniform float idx;
+          varying vec2 vUv;
+          float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5); }
+          float noise(vec2 p){ vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f);
+            return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+          void main(){
+            vec2 uv = vUv;
+            // Soft blurry shapes — impressionistic outside world
+            float n = noise(uv*1.8 + time*0.02) * 0.5 + noise(uv*3.5 - time*0.015) * 0.3;
+            float shape1 = smoothstep(0.55, 0.3, length(uv - vec2(0.3+n*0.1, 0.6)));
+            float shape2 = smoothstep(0.45, 0.2, length(uv - vec2(0.7+n*0.1, 0.4)));
+            float shape3 = smoothstep(0.3, 0.1, length(uv - vec2(0.5, 0.8+n*0.1)));
+            // Warm, shifting light outside — like a city seen through frosted glass
+            vec3 warmOrange = vec3(0.8, 0.55, 0.15);
+            vec3 coolBlue   = vec3(0.2, 0.35, 0.7);
+            vec3 col = mix(coolBlue, warmOrange, n*0.6 + 0.2);
+            float shapes = clamp(shape1+shape2+shape3, 0.0, 1.0);
+            float glow = 0.06 + shapes * 0.18;
+            float edgeFade = smoothstep(0.0,0.1,uv.x)*smoothstep(1.0,0.9,uv.x)*smoothstep(0.0,0.05,uv.y)*smoothstep(1.0,0.95,uv.y);
+            gl_FragColor = vec4(col, glow * edgeFade);
+          }
+        `,
+        transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      });
+      this.phenomenaMats.push(mat);
+
+      // Place slightly outside the wall
+      const dist = 5.2;
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 5), mat);
+      plane.position.set(
+        x + (Math.abs(x) > 0.1 ? Math.sign(x) * (dist - Math.abs(x)) : 0),
+        1.5,
+        z + (Math.abs(z) > 0.1 ? Math.sign(z) * (dist - Math.abs(z)) : 0)
+      );
+      plane.rotation.y = ry;
+      this.group.add(plane);
     });
   }
 
@@ -222,22 +267,55 @@ export class KantWorld extends BaseWorld {
   }
 
   _buildMoralLaw() {
-    // Categorical Imperative as glowing geometric star on floor
-    const starPoints = [];
+    // Categorical Imperative as glowing geometric star on floor — filled geometry
+    const starShape = new THREE.Shape();
     for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
+      const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
       const r = i % 2 === 0 ? 1.5 : 0.7;
-      starPoints.push(new THREE.Vector3(Math.cos(angle) * r, -1.97, Math.sin(angle) * r));
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      if (i === 0) starShape.moveTo(x, y); else starShape.lineTo(x, y);
     }
-    starPoints.push(starPoints[0].clone()); // close
+    starShape.closePath();
 
-    const starGeo = new THREE.BufferGeometry().setFromPoints(starPoints);
-    this.starMat = new THREE.LineBasicMaterial({
-      color: 0xc8a96e,
-      transparent: true,
-      opacity: 0.7,
+    const starGeo = new THREE.ShapeGeometry(starShape);
+    this.starMat = new THREE.ShaderMaterial({
+      uniforms: { time: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform float time;
+        varying vec2 vUv;
+        void main(){
+          float r = length(vUv - 0.5) * 2.0;
+          float pulse = 0.5 + 0.5 * sin(time * 1.2);
+          float alpha = (1.0 - r*0.8) * (0.4 + 0.3*pulse);
+          vec3 col = mix(vec3(0.9, 0.75, 0.3), vec3(1.0, 0.95, 0.6), pulse);
+          gl_FragColor = vec4(col, alpha);
+        }
+      `,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
     });
-    this.group.add(new THREE.Line(starGeo, this.starMat));
+    const starMesh = new THREE.Mesh(starGeo, this.starMat);
+    starMesh.rotation.x = -Math.PI / 2;
+    starMesh.position.y = -1.96;
+    this.group.add(starMesh);
+
+    // Outline on top
+    const outlinePts = [];
+    for (let i = 0; i <= 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 1.5 : 0.7;
+      outlinePts.push(new THREE.Vector3(Math.cos(angle) * r, -1.96, Math.sin(angle) * r));
+    }
+    const outlineGeo = new THREE.BufferGeometry().setFromPoints(outlinePts);
+    this.outlineMat = new THREE.LineBasicMaterial({ color: 0xffd060, transparent: true, opacity: 0.8 });
+    this.group.add(new THREE.Line(outlineGeo, this.outlineMat));
+
+    // Central glow point
+    const glowLight = new THREE.PointLight(0xc8a040, 1.5, 5);
+    glowLight.position.set(0, -1.5, 0);
+    this.group.add(glowLight);
+    this.moralLawLight = glowLight;
   }
 
   _buildHotspots() {
@@ -299,7 +377,18 @@ export class KantWorld extends BaseWorld {
 
     // Moral law star pulse
     if (this.starMat) {
-      this.starMat.opacity = 0.5 + 0.3 * Math.sin(t * 1.2);
+      this.starMat.uniforms.time.value = t;
+    }
+    if (this.outlineMat) {
+      this.outlineMat.opacity = 0.6 + 0.3 * Math.sin(t * 1.2);
+    }
+    if (this.moralLawLight) {
+      this.moralLawLight.intensity = 1.0 + 0.6 * Math.sin(t * 1.2);
+    }
+
+    // Phenomenal world shimmer
+    if (this.phenomenaMats) {
+      this.phenomenaMats.forEach(m => { m.uniforms.time.value = t; });
     }
   }
 }

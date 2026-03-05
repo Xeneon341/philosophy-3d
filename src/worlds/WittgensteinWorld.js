@@ -3,6 +3,7 @@ import { BaseWorld } from './BaseWorld.js';
 
 export class WittgensteinWorld extends BaseWorld {
   _build() {
+    this._buildFloor();
     this._buildTractatus();
     this._buildWall();
     this._buildSilence();
@@ -36,53 +37,111 @@ export class WittgensteinWorld extends BaseWorld {
     this.group.add(new THREE.Mesh(new THREE.SphereGeometry(18, 24, 12), this.skyMat));
   }
 
+  _buildFloor() {
+    // Single unified floor spanning both sides — cold on left (Tractatus), warm on right (Investigations)
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: `varying vec3 vW; void main(){ vW=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `
+        varying vec3 vW;
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5); }
+        float noise(vec2 p){ vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f);
+          return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+        void main(){
+          float gx = step(0.97, fract(vW.x * 0.5 + 50.0));
+          float gz = step(0.97, fract(vW.z * 0.5 + 50.0));
+          float grid = max(gx, gz);
+
+          // Blend: left = cold logic tile, right = warm wood
+          float side = smoothstep(-1.5, 1.5, vW.x); // 0=Tractatus, 1=Investigations
+          float n = noise(vW.xz * 0.8) * 0.4;
+
+          vec3 coldBase = vec3(0.04, 0.04, 0.08);
+          vec3 coldLine = vec3(0.20, 0.20, 0.30);
+          vec3 warmBase = vec3(0.16, 0.10, 0.06) + n * 0.06;
+          vec3 warmLine = vec3(0.08, 0.05, 0.03);
+
+          vec3 coldCol = mix(coldBase, coldLine, grid * 0.7);
+          vec3 warmCol = mix(warmBase, warmLine, grid * 0.5);
+          vec3 col = mix(coldCol, warmCol, side);
+
+          // Vignette
+          float r = length(vW.xz) / 16.0;
+          col *= 1.0 - r * 0.5;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(32, 24, 1, 1), mat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, -2, 0);
+    this.group.add(floor);
+  }
+
   _buildTractatus() {
+
     // Clean logical space: floating propositions as geometric nodes
     this.propositions = [];
     const PROPS = [
-      { text: '1', x: -4, y: 3, z: -2, on: true },
-      { text: '1.1', x: -5, y: 2, z: -3, on: true },
-      { text: '2', x: -3, y: 1, z: -3, on: true },
-      { text: '2.1', x: -4.5, y: 0, z: -4, on: true },
-      { text: '6.5', x: -2, y: -1, z: -2, on: true },
-      { text: '7', x: -1.5, y: -2, z: -1, on: false }, // silence
+      { text: '1',   x: -4,   y: 3,   z: -1,  on: true,  size: 0.22 },
+      { text: '1.1', x: -5.5, y: 1.8, z: -2,  on: true,  size: 0.15 },
+      { text: '1.2', x: -2.8, y: 1.5, z: -2,  on: true,  size: 0.15 },
+      { text: '2',   x: -4,   y: 0.5, z: -3,  on: true,  size: 0.20 },
+      { text: '2.1', x: -5.5, y:-0.5, z: -3.5, on: true, size: 0.13 },
+      { text: '2.2', x: -4,   y:-0.8, z: -4,  on: true,  size: 0.13 },
+      { text: '3',   x: -2.5, y:-0.2, z: -2.5, on: true, size: 0.18 },
+      { text: '6',   x: -3,   y:-1.5, z: -1.5, on: true, size: 0.16 },
+      { text: '6.5', x: -2,   y:-1.8, z: -0.8, on: true, size: 0.14 },
+      { text: '7',   x: -1.5, y:-2.2, z: -0.2, on: false, size: 0.18 }, // silence — dark
     ];
 
     const onMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.5,
+      color: 0xdde8ff,
+      emissive: 0x8899cc,
+      emissiveIntensity: 0.6,
       roughness: 0.2,
+      metalness: 0.1,
     });
     const offMat = new THREE.MeshStandardMaterial({
-      color: 0x111111,
+      color: 0x080808,
       roughness: 0.9,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.25,
     });
 
-    PROPS.forEach(({ x, y, z, on }) => {
-      const geo = new THREE.OctahedronGeometry(0.15, 0);
-      const mesh = new THREE.Mesh(geo, on ? onMat : offMat);
+    PROPS.forEach(({ x, y, z, on, size }) => {
+      const geo = new THREE.OctahedronGeometry(size, 0);
+      const mesh = new THREE.Mesh(geo, on ? onMat.clone() : offMat);
       mesh.position.set(x, y, z);
       this.group.add(mesh);
       this.propositions.push({ mesh, on });
+
+      // Glow halo on active nodes
+      if (on) {
+        const halo = new THREE.Mesh(
+          new THREE.SphereGeometry(size * 2.2, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0x4466bb, transparent: true, opacity: 0.04, side: THREE.BackSide, depthWrite: false })
+        );
+        halo.position.copy(mesh.position);
+        this.group.add(halo);
+      }
     });
 
-    // Logic tree lines connecting propositions
-    const logicMat = new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.2,
-    });
-    const connections = [[0, 1], [0, 2], [2, 3], [4, 5]];
+    // Logic tree lines — hierarchical connectors
+    const logicMat = new THREE.LineBasicMaterial({ color: 0x8899cc, transparent: true, opacity: 0.35 });
+    const connections = [[0,1],[0,2],[3,4],[3,5],[0,3],[3,6],[7,8],[6,7]];
     connections.forEach(([a, b]) => {
+      if (!PROPS[a] || !PROPS[b]) return;
       const geo = new THREE.BufferGeometry().setFromPoints([
-        PROPS[a] ? new THREE.Vector3(PROPS[a].x, PROPS[a].y, PROPS[a].z) : new THREE.Vector3(),
-        PROPS[b] ? new THREE.Vector3(PROPS[b].x, PROPS[b].y, PROPS[b].z) : new THREE.Vector3(),
+        new THREE.Vector3(PROPS[a].x, PROPS[a].y, PROPS[a].z),
+        new THREE.Vector3(PROPS[b].x, PROPS[b].y, PROPS[b].z),
       ]);
       this.group.add(new THREE.Line(geo, logicMat));
     });
+
+    // Cold overhead light on Tractatus side
+    const tractLight = new THREE.PointLight(0x8899dd, 1.8, 12);
+    tractLight.position.set(-4, 4, -2);
+    this.group.add(tractLight);
   }
 
   _buildWall() {
@@ -110,7 +169,7 @@ export class WittgensteinWorld extends BaseWorld {
       depthWrite: false,
     });
     this.wallMat = mat;
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 10, 1, 20), mat);
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 10, 2, 20), mat);
     wall.position.set(0.5, 0, -1);
     wall.rotation.y = Math.PI / 2;
     this.group.add(wall);
@@ -128,46 +187,97 @@ export class WittgensteinWorld extends BaseWorld {
   }
 
   _buildInvestigations() {
-    // Warm, chaotic marketplace — language games
+    // Floor y = -2. Post height 2.2 → center at y = -2 + 1.1 = -0.9, top at y = 0.1
+    const FLOOR_Y = -2;
+    const POST_H  = 2.2;
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a3a18, roughness: 0.9 });
+
+    // Market stalls spread out in front of the camera (positive z) on the right side (positive x)
+    [
+      [2.0, -3.0], [4.5, -2.0], [2.5, -5.5], [5.5, -4.5],
+    ].forEach(([sx, sz]) => {
+      [[0,0],[1.6,0],[0,1.6],[1.6,1.6]].forEach(([dx,dz]) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, POST_H, 5), woodMat);
+        post.position.set(sx + dx, FLOOR_Y + POST_H / 2, sz + dz);
+        this.group.add(post);
+      });
+      // Horizontal crossbars at top of posts
+      const bar1 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.06), woodMat);
+      bar1.position.set(sx + 0.8, FLOOR_Y + POST_H - 0.05, sz);
+      this.group.add(bar1);
+      const bar2 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.06), woodMat);
+      bar2.position.set(sx + 0.8, FLOOR_Y + POST_H - 0.05, sz + 1.6);
+      this.group.add(bar2);
+      const bar3 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.7), woodMat);
+      bar3.position.set(sx, FLOOR_Y + POST_H - 0.05, sz + 0.8);
+      this.group.add(bar3);
+      const bar4 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.7), woodMat);
+      bar4.position.set(sx + 1.6, FLOOR_Y + POST_H - 0.05, sz + 0.8);
+      this.group.add(bar4);
+    });
+
+    // Language-game objects sitting on the floor
     this.toolMeshes = [];
     const TOOLS = [
-      { geo: new THREE.BoxGeometry(0.3, 0.1, 0.5), color: 0xc87840, emissive: 0x603010, pos: [3, -0.5, 2], roughness: 0.85, metalness: 0 },    // book
-      { geo: new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), color: 0x8060a0, emissive: 0x301030, pos: [3.5, -0.3, 1], roughness: 0.6, metalness: 0.1 }, // pencil
-      { geo: new THREE.SphereGeometry(0.15, 8, 8), color: 0x60a860, emissive: 0x103010, pos: [4, -0.2, 2.5], roughness: 0.5, metalness: 0 },  // ball
-      { geo: new THREE.ConeGeometry(0.1, 0.3, 6), color: 0xd04040, emissive: 0x501010, pos: [2.5, -0.4, 1.5], roughness: 0.7, metalness: 0.2 }, // tool
+      { geo: new THREE.BoxGeometry(0.28, 0.08, 0.4),       color: 0xc87840, emissive: 0x603010, pos: [2.5,  FLOOR_Y+0.04, -3.4], r: 0.85, m: 0 },
+      { geo: new THREE.BoxGeometry(0.22, 0.06, 0.32),      color: 0xb06030, emissive: 0x502010, pos: [2.9,  FLOOR_Y+0.03, -3.1], r: 0.85, m: 0 },
+      { geo: new THREE.CylinderGeometry(0.04,0.04,0.45,6), color: 0x8060a0, emissive: 0x301030, pos: [4.8,  FLOOR_Y+0.22, -2.4], r: 0.6,  m: 0.1 },
+      { geo: new THREE.SphereGeometry(0.14, 8, 8),         color: 0x60a860, emissive: 0x103010, pos: [3.8,  FLOOR_Y+0.14, -3.0], r: 0.5,  m: 0 },
+      { geo: new THREE.ConeGeometry(0.09, 0.28, 6),        color: 0xd04040, emissive: 0x501010, pos: [5.0,  FLOOR_Y+0.14, -5.0], r: 0.7,  m: 0.2 },
+      { geo: new THREE.BoxGeometry(0.18, 0.18, 0.18),      color: 0xd0a020, emissive: 0x604000, pos: [3.2,  FLOOR_Y+0.09, -5.2], r: 0.6,  m: 0.3 },
+      { geo: new THREE.CylinderGeometry(0.12,0.12,0.06,12),color: 0x608080, emissive: 0x203030, pos: [4.4,  FLOOR_Y+0.03, -4.5], r: 0.7,  m: 0.4 },
+      { geo: new THREE.BoxGeometry(0.35, 0.04, 0.25),      color: 0xa06040, emissive: 0x402010, pos: [6.0,  FLOOR_Y+0.02, -3.5], r: 0.9,  m: 0 },
     ];
 
-    TOOLS.forEach(({ geo, color, emissive, pos, roughness, metalness }) => {
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.3, roughness, metalness }));
+    TOOLS.forEach(({ geo, color, emissive, pos, r, m }) => {
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.3, roughness: r, metalness: m }));
       mesh.position.set(...pos);
+      mesh.rotation.y = Math.random() * Math.PI;
       this.group.add(mesh);
       this.toolMeshes.push(mesh);
     });
 
-    // Family resemblance Venn spheres
-    const vennColors = [0xc87040, 0x7040c8, 0x40c870];
-    const vennCenters = [[2.5, 1, 3], [3.5, 1, 3], [3, 1, 4]];
+    // Family resemblance Venn spheres — hovering at eye level on Investigations side
+    const vennColors  = [0xc87040, 0x7040c8, 0x40c870];
+    const vennCenters = [[3.0, 1.0, -2.0], [4.2, 1.0, -2.0], [3.6, 1.0, -3.0]];
     this.vennSpheres = [];
     vennColors.forEach((color, i) => {
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 12, 12),
-        new THREE.MeshStandardMaterial({
-          color,
-          transparent: true,
-          opacity: 0.15,
-          roughness: 0.5,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        })
+        new THREE.SphereGeometry(0.75, 14, 14),
+        new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.13, roughness: 0.5, side: THREE.DoubleSide, depthWrite: false })
       );
       mesh.position.set(...vennCenters[i]);
       this.group.add(mesh);
       this.vennSpheres.push(mesh);
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.75, 0.015, 6, 40),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false })
+      );
+      ring.position.set(...vennCenters[i]);
+      this.group.add(ring);
     });
 
-    // Warm ambient light on investigations side
-    const warmLight = new THREE.PointLight(0xffa060, 1.5, 8);
-    warmLight.position.set(3, 1, 2.5);
+    // Warm lanterns hanging from stall tops
+    [[2.8, FLOOR_Y+POST_H+0.2, -2.8], [4.8, FLOOR_Y+POST_H+0.2, -3.8], [3.2, FLOOR_Y+POST_H+0.2, -5.8]].forEach(([lx, ly, lz]) => {
+      const pl = new THREE.PointLight(0xffaa50, 1.4, 7);
+      pl.position.set(lx, ly - 0.5, lz);
+      this.group.add(pl);
+      const lantern = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.18, 0.12),
+        new THREE.MeshBasicMaterial({ color: 0xffcc60, transparent: true, opacity: 0.8 })
+      );
+      lantern.position.set(lx, ly - 0.5, lz);
+      this.group.add(lantern);
+      // Hanging wire
+      const wirePts = [new THREE.Vector3(lx, ly, lz), new THREE.Vector3(lx, ly - 0.45, lz)];
+      this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(wirePts),
+        new THREE.LineBasicMaterial({ color: 0x888060 })));
+    });
+
+    // Warm fill light
+    const warmLight = new THREE.PointLight(0xffa060, 1.2, 14);
+    warmLight.position.set(4, 1, -4);
     this.group.add(warmLight);
   }
 
@@ -191,8 +301,7 @@ export class WittgensteinWorld extends BaseWorld {
 
     // Tools wobble gently
     this.toolMeshes.forEach((m, i) => {
-      m.rotation.y = t * 0.2 + i;
-      m.position.y = m.position.y + Math.sin(t * 0.5 + i) * 0.001;
+      m.rotation.y = t * 0.15 + i;
     });
 
     // Venn spheres pulse

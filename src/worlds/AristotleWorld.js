@@ -9,6 +9,7 @@ export class AristotleWorld extends BaseWorld {
     this._buildUnmovedMover();
     this._buildCelestialSpheres();
     this._buildParticles();
+    this._buildBirds();
     this._buildHotspots();
 
     this._buildSky();
@@ -348,6 +349,45 @@ export class AristotleWorld extends BaseWorld {
     this.group.add(new THREE.Points(geo, mat));
   }
 
+  _buildBirds() {
+    // Simple V-wing bird shapes flying in loose formation — classic Aristotle biology
+    this.birds = [];
+    const birdMat = new THREE.MeshBasicMaterial({ color: 0x2a2218, side: THREE.DoubleSide });
+
+    for (let i = 0; i < 9; i++) {
+      const bird = new THREE.Group();
+      // Two wing planes
+      [-1, 1].forEach(side => {
+        const wing = new THREE.Mesh(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(side * 0.28, 0.06, -0.08),
+            new THREE.Vector3(side * 0.14, 0, 0.1),
+          ]),
+          birdMat
+        );
+        wing.geometry.setIndex([0,1,2]);
+        wing.geometry.computeVertexNormals();
+        bird.add(wing);
+      });
+
+      // Spread out in loose flock
+      bird.position.set(
+        (Math.random() - 0.5) * 8,
+        2 + Math.random() * 3,
+        -3 + (Math.random() - 0.5) * 6
+      );
+      bird.userData.speed = 0.6 + Math.random() * 0.4;
+      bird.userData.phase = Math.random() * Math.PI * 2;
+      bird.userData.radius = 3 + Math.random() * 3;
+      bird.userData.height = bird.position.y;
+      bird.userData.yOffset = (Math.random() - 0.5) * 0.5;
+
+      this.group.add(bird);
+      this.birds.push(bird);
+    }
+  }
+
   _buildHotspots() {
     const hotspots = [
       {
@@ -393,11 +433,28 @@ export class AristotleWorld extends BaseWorld {
   }
 
   _update(t) {
-    // Rotate celestial spheres at different speeds
+    // Rotate celestial spheres at different speeds — boost opacity on hover proximity
     this.spheres.forEach((s, i) => {
       s.rotation.y = t * (0.05 + i * 0.03);
       s.rotation.x = t * (0.03 + i * 0.02) + i * 0.5;
+      s.material.opacity = (0.22 - i * 0.02) * (0.7 + 0.3 * Math.sin(t * 0.3 + i));
     });
+
+    // Birds flap and circle
+    if (this.birds) {
+      this.birds.forEach((bird, i) => {
+        const { speed, phase, radius, height } = bird.userData;
+        const a = t * speed + phase;
+        bird.position.x = Math.cos(a) * radius;
+        bird.position.z = -3 + Math.sin(a) * radius;
+        bird.position.y = height + Math.sin(t * 2.5 + phase) * 0.15;
+        bird.rotation.y = -a + Math.PI / 2;
+        // Flap wings
+        bird.children.forEach((wing, wi) => {
+          wing.rotation.z = Math.sin(t * 6 + phase) * 0.35 * (wi === 0 ? 1 : -1);
+        });
+      });
+    }
 
     // Unmoved Mover — shader animates, body doesn't rotate (unmoved!), but flares do
     this.unmovedMat.uniforms.time.value = t;

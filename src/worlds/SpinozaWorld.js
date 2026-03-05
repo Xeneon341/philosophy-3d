@@ -10,7 +10,7 @@ export class SpinozaWorld extends BaseWorld {
     this._buildHotspots();
 
     const ambient = new THREE.AmbientLight(0x0a0520, 0.5);
-    this.centralLight = new THREE.PointLight(0xa070ff, 3.5, 20);
+    this.centralLight = new THREE.PointLight(0xa070ff, 6.0, 28);
     this.centralLight.position.set(0, 0, 0);
     this.group.add(ambient, this.centralLight);
   }
@@ -49,8 +49,8 @@ export class SpinozaWorld extends BaseWorld {
   }
 
   _buildCentralSubstance() {
-    // The central Substance node — God/Nature
-    const geo = new THREE.IcosahedronGeometry(0.35, 4);
+    // The central Substance node — God/Nature — dominant at the centre
+    const geo = new THREE.IcosahedronGeometry(0.85, 4);
     this.substanceMat = new THREE.ShaderMaterial({
       uniforms: { time: { value: 0 } },
       vertexShader: `
@@ -89,16 +89,21 @@ export class SpinozaWorld extends BaseWorld {
     this.substanceMesh = new THREE.Mesh(geo, this.substanceMat);
     this.group.add(this.substanceMesh);
 
-    // Outer halo
-    const haloGeo = new THREE.SphereGeometry(0.7, 16, 16);
+    // Outer halo — proportionally larger
+    const haloGeo = new THREE.SphereGeometry(1.7, 16, 16);
     const haloMat = new THREE.MeshBasicMaterial({ color: 0x8040ff, transparent: true, opacity: 0.06, side: THREE.BackSide });
     this.group.add(new THREE.Mesh(haloGeo, haloMat));
 
-    // Equatorial rings
+    // Second outer halo
+    const halo2 = new THREE.Mesh(new THREE.SphereGeometry(2.4, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x6020cc, transparent: true, opacity: 0.03, side: THREE.BackSide, depthWrite: false }));
+    this.group.add(halo2);
+
+    // Equatorial rings — larger
     [0, Math.PI/4, Math.PI/2].forEach((tilt, i) => {
       const r = new THREE.Mesh(
-        new THREE.TorusGeometry(0.6 + i * 0.15, 0.012, 6, 64),
-        new THREE.MeshBasicMaterial({ color: 0xa060ff, transparent: true, opacity: 0.25, depthWrite: false })
+        new THREE.TorusGeometry(1.4 + i * 0.3, 0.022, 6, 64),
+        new THREE.MeshBasicMaterial({ color: 0xa060ff, transparent: true, opacity: 0.30 - i*0.05, depthWrite: false })
       );
       r.rotation.x = Math.PI / 2 + tilt;
       this.group.add(r);
@@ -180,8 +185,8 @@ export class SpinozaWorld extends BaseWorld {
     this.extensionParticles = this._makeStream(0x3388ff, 500, 'x');
     // Thought stream (gold) — vertical ribbons
     this.thoughtParticles   = this._makeStream(0xffcc44, 500, 'y');
-    // Third attribute hint (unknowable) — spiraling
-    this.hiddenParticles    = this._makeStream(0xff4488, 200, 'spiral');
+    // Third attribute hint (unknowable) — spiraling, dark violet / barely visible
+    this.hiddenParticles    = this._makeStream(0x440066, 200, 'spiral');
   }
 
   _makeStream(color, count, axis) {
