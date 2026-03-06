@@ -222,62 +222,87 @@ export class FoucaultWorld extends BaseWorld {
 
   _buildCellRing() {
     const concMat = this._concreteMat;
-    const CELLS = 12;
-    const RING_R = 8.5;
+    const barMat  = new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.5, metalness: 0.9 });
+    const CELLS   = 12;
+    const BAR_R   = 7.5;  // inner face radius (bar side, toward tower)
+    const BACK_R  = 9.5;  // outer face radius (back wall)
+    const DEPTH   = BACK_R - BAR_R; // = 2.0
+    const HALF_W  = 1.0;  // half cell width
+    const HEIGHT  = 4.5;
     this.cells = [];
 
     for (let i = 0; i < CELLS; i++) {
       const angle = (i / CELLS) * Math.PI * 2;
-      const cx = Math.cos(angle) * RING_R;
-      const cz = Math.sin(angle) * RING_R;
+      // Radial unit vector pointing outward from tower for this cell
+      const rx = Math.cos(angle);
+      const rz = Math.sin(angle);
+      // Tangential unit vector (perpendicular, for cell width)
+      const tx = -Math.sin(angle);
+      const tz =  Math.cos(angle);
+
+      // All geometry placed in world space — no group rotation needed
       const cellGroup = new THREE.Group();
-      cellGroup.position.set(cx, 0, cz);
-      cellGroup.rotation.y = -angle + Math.PI;
 
-      const backWall = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 4.5, 3, 4), concMat);
-      backWall.position.z = -1.0;
-      cellGroup.add(backWall);
+      // Back wall — at outer radius, perpendicular to radial direction
+      const bw = new THREE.Mesh(new THREE.BoxGeometry(HALF_W * 2 + 0.2, HEIGHT, 0.2), concMat);
+      bw.position.set(rx * BACK_R, HEIGHT / 2, rz * BACK_R);
+      bw.rotation.y = -angle; // face tangentially (wall faces inward)
+      cellGroup.add(bw);
 
-      [-1.0, 1.0].forEach(sx => {
-        const sw = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 4.5, 2, 4), concMat);
-        sw.rotation.y = Math.PI / 2;
-        sw.position.x = sx;
+      // Side walls — along the radial direction
+      [-1, 1].forEach(side => {
+        const sw = new THREE.Mesh(new THREE.BoxGeometry(0.2, HEIGHT, DEPTH), concMat);
+        sw.position.set(
+          rx * (BAR_R + DEPTH / 2) + tx * side * HALF_W,
+          HEIGHT / 2,
+          rz * (BAR_R + DEPTH / 2) + tz * side * HALF_W
+        );
+        sw.rotation.y = -angle;
         cellGroup.add(sw);
       });
 
-      const cf = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.0), concMat);
-      cf.rotation.x = -Math.PI / 2;
-      cf.position.y = 0.01;
-      cellGroup.add(cf);
+      // Floor slab
+      const fl = new THREE.Mesh(new THREE.BoxGeometry(HALF_W * 2, 0.1, DEPTH), concMat);
+      fl.position.set(rx * (BAR_R + DEPTH / 2), 0.05, rz * (BAR_R + DEPTH / 2));
+      fl.rotation.y = -angle;
+      cellGroup.add(fl);
 
-      const barMat = new THREE.MeshStandardMaterial({ color: 0x1a1e22, roughness: 0.8, metalness: 0.6 });
-      for (let b = -1; b <= 1; b++) {
-        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.0, 5), barMat);
-        bar.position.set(b * 0.45, 2.0, 0.02);
+      // Bars — at inner face (BAR_R), vertical, spread tangentially
+      for (let b = -2; b <= 2; b++) {
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, HEIGHT, 8), barMat);
+        const frac = b * (HALF_W * 0.9 / 2);
+        bar.position.set(
+          rx * BAR_R + tx * frac,
+          HEIGHT / 2,
+          rz * BAR_R + tz * frac
+        );
         cellGroup.add(bar);
       }
 
-      const figMat = new THREE.MeshStandardMaterial({
-        color: 0x0d0f11, roughness: 1.0,
-        emissive: 0x060810, emissiveIntensity: 0.15,
-      });
+      // Prisoner — at cell midpoint, facing inward (toward tower)
+      const midR = BAR_R + DEPTH / 2;
+      const figMat = new THREE.MeshBasicMaterial({ color: 0xc8906a });
       const figGroup = new THREE.Group();
-      const torso = this._box(0, 1.0, -0.5, 0.22, 0.55, 0.16, figMat);
-      figGroup.add(torso);
+      figGroup.position.set(rx * midR, 0, rz * midR);
+      figGroup.rotation.y = Math.PI + angle; // face toward origin
+
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 6), figMat);
-      head.position.set(0, 1.65, -0.5);
+      head.position.set(0, 1.95, 0);
       figGroup.add(head);
-      figGroup.add(this._box(-0.32, 1.0, -0.5, 0.08, 0.42, 0.1, figMat));
-      figGroup.add(this._box( 0.32, 1.0, -0.5, 0.08, 0.42, 0.1, figMat));
-      figGroup.add(this._box(-0.1, 0.3, -0.5, 0.1, 0.5, 0.1, figMat));
-      figGroup.add(this._box( 0.1, 0.3, -0.5, 0.1, 0.5, 0.1, figMat));
-      // Store head for looking-around animation
-      figGroup.userData.head = head;
+      figGroup.add(this._box(0,     1.3,  0,    0.22, 0.55, 0.16, figMat)); // torso
+      figGroup.add(this._box(-0.32, 1.3,  0,    0.08, 0.42, 0.1,  figMat)); // upper arms
+      figGroup.add(this._box( 0.32, 1.3,  0,    0.08, 0.42, 0.1,  figMat));
+      figGroup.add(this._box(-0.1,  0.65, 0,    0.1,  0.6,  0.1,  figMat)); // legs
+      figGroup.add(this._box( 0.1,  0.65, 0,    0.1,  0.6,  0.1,  figMat));
+
+      figGroup.userData.head  = head;
       figGroup.userData.phase = Math.random() * Math.PI * 2;
       cellGroup.add(figGroup);
 
       this.group.add(cellGroup);
-      this.cells.push({ group: cellGroup, angle, figMat, figGroup, cx, cz });
+      // Store world-space bar-face position for searchlight proximity check
+      this.cells.push({ group: cellGroup, angle, figMat, figGroup,
+        cx: rx * BAR_R, cz: rz * BAR_R });
     }
 
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(10.0, 10.0, 5.5, 36, 3, true), this._concreteMat);
@@ -509,19 +534,17 @@ export class FoucaultWorld extends BaseWorld {
     this.cells.forEach(({ figMat, figGroup, cx, cz }) => {
       const dist = Math.sqrt((cx - sx) ** 2 + (cz - sz) ** 2);
       const lit = dist < 1.5;
-      figMat.emissiveIntensity = lit ? 0.8 : 0.08 + 0.04 * Math.sin(t * 0.3);
+      figMat.color.setHex(lit ? 0xffd0a0 : 0xc8906a);
 
       // Head subtly looks toward tower when lit, shifts nervously otherwise
       if (figGroup && figGroup.userData.head) {
         const h = figGroup.userData.head;
         const phase = figGroup.userData.phase;
         if (lit) {
-          // Snap to look slightly toward tower (positive z in cell-local space)
-          h.position.z = -0.5 + 0.12; // lean toward bars
+          h.position.z = 0.15; // lean toward bars
           h.rotation.x = -0.25;
         } else {
-          // Slow nervous shifting
-          h.position.z = -0.5 + Math.sin(t * 0.3 + phase) * 0.04;
+          h.position.z = Math.sin(t * 0.3 + phase) * 0.04;
           h.rotation.x = Math.sin(t * 0.2 + phase) * 0.08;
           h.rotation.y = Math.sin(t * 0.15 + phase * 1.3) * 0.12;
         }

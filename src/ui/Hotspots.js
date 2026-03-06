@@ -27,6 +27,7 @@ export class HotspotManager {
       opacity: 0.8,
       side: THREE.DoubleSide,
       depthWrite: false,
+      depthTest: false,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
 
@@ -37,6 +38,8 @@ export class HotspotManager {
       transparent: true,
       opacity: 0.9,
       side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false,
     });
     const dot = new THREE.Mesh(dotGeo, dotMat);
 

@@ -8,6 +8,14 @@ export const PHILOSOPHERS = [
     color: 0xf0c060,
     position: [-4, 1.5, -2],
     size: 1.1,
+    // Golden cave-sun: warm banded surface, wide bright rings
+    surfaceStyle: 'banded',   // alternating light/dark latitude bands
+    rings: [
+      { tilt: Math.PI / 2,     opacity: 0.45, width: 1.6 },
+      { tilt: Math.PI / 2 + Math.PI / 5, opacity: 0.22, width: 2.2 },
+    ],
+    glowColor: 0xffe090,
+    glowOpacity: 0.12,
   },
   {
     id: 'aristotle',
@@ -18,6 +26,15 @@ export const PHILOSOPHERS = [
     color: 0x7dba84,
     position: [-1.5, -1, -4],
     size: 1.0,
+    // Garden green: rich swirling surface, earthy rings
+    surfaceStyle: 'swirl',
+    rings: [
+      { tilt: Math.PI / 2 + Math.PI / 6, opacity: 0.30, width: 1.4 },
+      { tilt: Math.PI / 2 - Math.PI / 5, opacity: 0.18, width: 1.8 },
+      { tilt: Math.PI / 3,               opacity: 0.12, width: 2.4 },
+    ],
+    glowColor: 0x90d890,
+    glowOpacity: 0.09,
   },
   {
     id: 'aquinas',
@@ -28,6 +45,13 @@ export const PHILOSOPHERS = [
     color: 0xc8a96e,
     position: [-2.5, 0.5, -3],
     size: 1.0,
+    // Warm amber scholastic: cross-hatched surface, cathedral gold ring
+    surfaceStyle: 'grid',
+    rings: [
+      { tilt: Math.PI / 2,               opacity: 0.35, width: 1.5 },
+    ],
+    glowColor: 0xe0c080,
+    glowOpacity: 0.10,
   },
   {
     id: 'descartes',
@@ -38,6 +62,14 @@ export const PHILOSOPHERS = [
     color: 0x8ab4d4,
     position: [3.5, 0.5, -3],
     size: 0.95,
+    // Icy Cartesian: clean grid surface, precise equatorial ring
+    surfaceStyle: 'grid',
+    rings: [
+      { tilt: Math.PI / 2,               opacity: 0.50, width: 1.3 },
+      { tilt: Math.PI / 2 + Math.PI / 8, opacity: 0.15, width: 2.0 },
+    ],
+    glowColor: 0xb0d8f8,
+    glowOpacity: 0.11,
   },
   {
     id: 'spinoza',
@@ -48,6 +80,15 @@ export const PHILOSOPHERS = [
     color: 0xa78bfa,
     position: [1.5, 2.5, -1],
     size: 0.9,
+    // Crystal infinite: gem-facet shimmer, many tilted rings
+    surfaceStyle: 'crystal',
+    rings: [
+      { tilt: Math.PI / 2,               opacity: 0.30, width: 1.4 },
+      { tilt: Math.PI / 3,               opacity: 0.28, width: 1.7 },
+      { tilt: Math.PI / 6,               opacity: 0.20, width: 2.0 },
+    ],
+    glowColor: 0xc8a0ff,
+    glowOpacity: 0.14,
   },
   {
     id: 'hume',
@@ -58,6 +99,13 @@ export const PHILOSOPHERS = [
     color: 0x7ec8e3,
     position: [-3, -0.5, 1.5],
     size: 0.9,
+    // Misty archipelago: noisy patchy surface, soft diffuse glow, no rings
+    surfaceStyle: 'patchy',
+    rings: [
+      { tilt: Math.PI / 2 + Math.PI / 4, opacity: 0.14, width: 2.2 },
+    ],
+    glowColor: 0xa0e0f8,
+    glowOpacity: 0.15,
   },
   {
     id: 'kant',
@@ -68,6 +116,14 @@ export const PHILOSOPHERS = [
     color: 0xe8e0c8,
     position: [0.5, -2, 2],
     size: 1.05,
+    // Marble cathedral: pale banded, prominent symmetrical dual rings
+    surfaceStyle: 'banded',
+    rings: [
+      { tilt: Math.PI / 2,               opacity: 0.55, width: 1.4 },
+      { tilt: Math.PI / 2 + Math.PI / 4, opacity: 0.30, width: 2.0 },
+    ],
+    glowColor: 0xf8f4e8,
+    glowOpacity: 0.10,
   },
   {
     id: 'hegel',
@@ -78,6 +134,14 @@ export const PHILOSOPHERS = [
     color: 0xf97316,
     position: [4, -1.5, 1],
     size: 0.95,
+    // Volcanic dialectic: turbulent swirl, fiery asymmetric rings
+    surfaceStyle: 'swirl',
+    rings: [
+      { tilt: Math.PI / 2 + Math.PI / 7, opacity: 0.40, width: 1.5 },
+      { tilt: Math.PI / 2 - Math.PI / 9, opacity: 0.20, width: 2.3 },
+    ],
+    glowColor: 0xff9040,
+    glowOpacity: 0.13,
   },
   {
     id: 'nietzsche',
@@ -88,6 +152,14 @@ export const PHILOSOPHERS = [
     color: 0xe74c3c,
     position: [-1, 1, 3.5],
     size: 1.0,
+    // Ruins & fire: cracked patchy surface, dramatic tilted ring
+    surfaceStyle: 'patchy',
+    rings: [
+      { tilt: Math.PI / 2 + Math.PI / 3, opacity: 0.50, width: 1.6 },
+      { tilt: Math.PI / 2,               opacity: 0.12, width: 2.8 },
+    ],
+    glowColor: 0xff6050,
+    glowOpacity: 0.12,
   },
   {
     id: 'wittgenstein',
@@ -98,6 +170,13 @@ export const PHILOSOPHERS = [
     color: 0xf0f0f0,
     position: [2, 2, 2.5],
     size: 0.85,
+    // Logical crystal: sharp grid surface, razor-thin precise ring
+    surfaceStyle: 'grid',
+    rings: [
+      { tilt: Math.PI / 2,               opacity: 0.60, width: 1.2 },
+    ],
+    glowColor: 0xffffff,
+    glowOpacity: 0.08,
   },
   {
     id: 'foucault',
@@ -105,9 +184,17 @@ export const PHILOSOPHERS = [
     dates: 'AD 1926 – 1984',
     school: 'Poststructuralism / Postmodernism',
     quote: 'Where there is power, there is resistance.',
-    color: 0x4a7a9b,
+    color: 0x5b9ec9,
     position: [-0.5, -1.5, -1.5],
     size: 0.95,
+    // Surveillance grey-blue: panopticon concentric banding, searching ring
+    surfaceStyle: 'banded',
+    rings: [
+      { tilt: Math.PI / 2 + Math.PI / 5, opacity: 0.38, width: 1.5 },
+      { tilt: Math.PI / 2 - Math.PI / 5, opacity: 0.20, width: 2.1 },
+    ],
+    glowColor: 0x80c8f0,
+    glowOpacity: 0.12,
   },
 ];
 

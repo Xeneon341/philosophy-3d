@@ -120,16 +120,21 @@ export class Universe {
   // ── Philosopher nodes ──────────────────────────────────────────────────────
 
   _buildNodes() {
+    // surfaceStyle → integer: 0=banded, 1=swirl, 2=grid, 3=crystal, 4=patchy
+    const SURFACE_STYLES = { banded: 0, swirl: 1, grid: 2, crystal: 3, patchy: 4 };
+
     PHILOSOPHERS.forEach((p, i) => {
       // Higher-res sphere base
       const geo = new THREE.IcosahedronGeometry(0.20 * p.size, 4);
+      const styleId = SURFACE_STYLES[p.surfaceStyle] ?? 0;
       const mat = new THREE.ShaderMaterial({
         vertexShader:   nodeVertexShader,
         fragmentShader: nodeFragmentShader,
         uniforms: {
-          color:   { value: new THREE.Color(p.color) },
-          time:    { value: 0 },
-          hovered: { value: 0 },
+          color:        { value: new THREE.Color(p.color) },
+          time:         { value: 0 },
+          hovered:      { value: 0 },
+          surfaceStyle: { value: styleId },
         },
         transparent: true,
       });
@@ -139,35 +144,44 @@ export class Universe {
       mesh.userData = { philosopher: p, index: i };
 
       // ── Atmosphere halo ──
-      const haloGeo = new THREE.SphereGeometry(0.30 * p.size, 16, 16);
+      const haloOpacity = p.glowOpacity ?? 0.04;
+      const haloColor   = p.glowColor   ?? p.color;
+      const haloGeo = new THREE.SphereGeometry(0.34 * p.size, 16, 16);
       const haloMat = new THREE.MeshBasicMaterial({
-        color: p.color,
+        color: haloColor,
         transparent: true,
-        opacity: 0.04,
+        opacity: haloOpacity,
         side: THREE.BackSide,
         depthWrite: false,
       });
       mesh.add(new THREE.Mesh(haloGeo, haloMat));
 
-      // ── Orbital rings (2 at different tilts) ──
-      [0, Math.PI / 3].forEach((tilt, ri) => {
-        const ringGeo = new THREE.TorusGeometry(0.30 * p.size, 0.008 * p.size, 6, 48);
+      // ── Per-philosopher rings ──
+      const ringDefs = p.rings ?? [
+        { tilt: 0, opacity: 0.18, width: 1.0 },
+        { tilt: Math.PI / 3, opacity: 0.12, width: 1.4 },
+      ];
+      ringDefs.forEach((rd, ri) => {
+        const outerR = 0.30 * p.size * rd.width;
+        const tubeR  = 0.007 * p.size;
+        const ringGeo = new THREE.TorusGeometry(outerR, tubeR, 6, 64);
         const ringMat = new THREE.MeshBasicMaterial({
-          color: p.color,
+          color: p.glowColor ?? p.color,
           transparent: true,
-          opacity: 0.18,
+          opacity: rd.opacity,
           depthWrite: false,
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2 + tilt;
+        ring.rotation.x = rd.tilt;
         ring.userData.isRing = true;
         ring.userData.ringIdx = ri;
+        ring.userData.baseOpacity = rd.opacity;
         mesh.add(ring);
       });
 
       // ── Tiny orbiting moon ──
       const moonGeo = new THREE.SphereGeometry(0.025 * p.size, 8, 8);
-      const moonMat = new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.6 });
+      const moonMat = new THREE.MeshBasicMaterial({ color: p.glowColor ?? p.color, transparent: true, opacity: 0.6 });
       const moon = new THREE.Mesh(moonGeo, moonMat);
       moon.userData.isMoon = true;
       mesh.add(moon);
@@ -316,7 +330,7 @@ export class Universe {
     this.nodeMeshes.forEach(m => {
       m.material.uniforms.hovered.value = 0;
       m.children.forEach(c => {
-        if (c.material && c.userData.isRing) c.material.opacity = 0.18;
+        if (c.material && c.userData.isRing) c.material.opacity = c.userData.baseOpacity ?? 0.18;
       });
     });
 
@@ -332,7 +346,7 @@ export class Universe {
     if (hitNode) {
       hitNode.material.uniforms.hovered.value = 1;
       hitNode.children.forEach(c => {
-        if (c.material && c.userData.isRing) c.material.opacity = 0.5;
+        if (c.material && c.userData.isRing) c.material.opacity = Math.min((c.userData.baseOpacity ?? 0.18) * 2.2, 0.9);
       });
       this.hoveredNode = hitNode.userData;
       document.body.style.cursor = 'pointer';

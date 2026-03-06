@@ -44,12 +44,13 @@ export const starFragmentShader = `
 export const nodeVertexShader = `
   uniform float time;
   uniform float hovered;
+  uniform int surfaceStyle;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
+  varying vec3 vLocalPos;
   varying vec2 vUv;
   varying float vNoise;
 
-  // Simple 3D hash noise
   float hash(vec3 p) {
     p = fract(p * vec3(443.8975, 397.2973, 491.1871));
     p += dot(p.zxy, p.yxz + 19.19);
@@ -70,13 +71,12 @@ export const nodeVertexShader = `
   void main() {
     vNormal = normalize(normalMatrix * normal);
     vUv = uv;
+    vLocalPos = position;
 
-    // Animated surface noise
-    float n = smoothNoise(position * 3.0 + time * 0.15);
+    float n  = smoothNoise(position * 3.0 + time * 0.15);
     float n2 = smoothNoise(position * 7.0 - time * 0.09);
     vNoise = n * 0.6 + n2 * 0.4;
 
-    // Pulse + noise displacement
     float pulse = 1.0 + 0.03 * sin(time * 2.1) + hovered * 0.06 * sin(time * 5.0);
     float disp  = 0.04 * (vNoise - 0.5);
     vec3 pos = (position + normal * disp) * pulse;
@@ -89,32 +89,68 @@ export const nodeFragmentShader = `
   uniform vec3 color;
   uniform float time;
   uniform float hovered;
+  uniform int surfaceStyle;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
+  varying vec3 vLocalPos;
   varying vec2 vUv;
   varying float vNoise;
+
+  float hash2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5); }
 
   void main() {
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float rim = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
+    vec3 norm = normalize(vLocalPos);
 
-    // Atmospheric band pattern
-    float band = sin(vNoise * 12.0 + time * 0.3) * 0.5 + 0.5;
+    // ── Per-style surface pattern ──────────────────────────────────────────
+    float pattern = 0.5;
 
-    // Core colour with noise-driven variation
-    vec3 col = color * (0.25 + band * 0.15);
+    if (surfaceStyle == 0) {
+      // Banded: latitude stripes
+      float lat = norm.y;
+      pattern = sin(lat * 10.0 + time * 0.2 + vNoise * 3.0) * 0.5 + 0.5;
 
-    // Bright rim / atmosphere
-    col += color * rim * (1.4 + 0.3 * sin(time * 1.2));
+    } else if (surfaceStyle == 1) {
+      // Swirl: animated turbulence
+      float s = sin(norm.x * 8.0 + norm.y * 5.0 + time * 0.4 + vNoise * 4.0);
+      float s2 = sin(norm.z * 6.0 - norm.y * 7.0 - time * 0.3 + vNoise * 3.0);
+      pattern = (s + s2) * 0.25 + 0.5;
 
-    // Hot highlight on hover
+    } else if (surfaceStyle == 2) {
+      // Grid: crisp latlong lines
+      float gx = step(0.88, abs(sin(norm.x * 12.0)));
+      float gy = step(0.88, abs(sin(norm.y * 12.0)));
+      float gz = step(0.88, abs(sin(norm.z * 12.0)));
+      pattern = 0.3 + clamp(gx + gy + gz, 0.0, 1.0) * 0.6;
+
+    } else if (surfaceStyle == 3) {
+      // Crystal: faceted gem look — sharp noise cells
+      vec3 cell = floor(norm * 5.0);
+      float c = hash2(cell.xy + cell.z * 7.3);
+      pattern = 0.3 + c * 0.7;
+
+    } else {
+      // Patchy (4): irregular blotchy continents
+      float p1 = smoothstep(0.45, 0.55, vNoise);
+      float p2 = smoothstep(0.35, 0.65, sin(norm.y * 4.0 + time * 0.1) * 0.5 + 0.5);
+      pattern = mix(0.2, 0.8, p1 * p2);
+    }
+
+    // Core colour driven by pattern
+    vec3 col = color * (0.2 + pattern * 0.25);
+
+    // Bright rim / atmosphere glow
+    col += color * rim * (1.5 + 0.4 * sin(time * 1.2));
+
+    // Hover highlight
     col += color * hovered * (0.6 + 0.3 * sin(time * 4.0));
 
     // Inner glow pulse
     float glow = 0.3 + 0.2 * sin(time * 1.8);
-    col += color * glow * (1.0 - rim) * 0.3;
+    col += color * glow * (1.0 - rim) * 0.35;
 
-    float alpha = 0.7 + rim * 0.3;
+    float alpha = 0.75 + rim * 0.25;
     gl_FragColor = vec4(col, alpha);
   }
 `;

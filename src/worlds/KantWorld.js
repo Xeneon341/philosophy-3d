@@ -328,7 +328,7 @@ export class KantWorld extends BaseWorld {
         <p>Kant offers a second formulation: "Act so that you treat humanity, whether in your own person or that of another, always as an end and never as a means only." People are not tools. They have dignity — unconditional worth that cannot be traded away.</p>`,
       },
       {
-        position: [0, 4, 0],
+        position: [0, 2.5, 0],
         title: 'Space, Time & the Categories',
         body: `<p>Kant's Copernican revolution: instead of asking how the mind conforms to objects, ask how objects conform to the mind. We don't passively receive experience — we actively structure it.</p>
         <p>Space and Time are not features of the world in itself — they are the forms of our intuition, the lenses through which we must perceive. The twelve Categories of the Understanding (Causality, Substance, Unity...) are the concepts we necessarily impose on experience.</p>
@@ -342,14 +342,14 @@ export class KantWorld extends BaseWorld {
         <p>The thing-in-itself remains one of philosophy's deepest wounds — the point where knowledge runs out and speculation begins.</p>`,
       },
       {
-        position: [4, 1, 0],
+        position: [2.8, 1, 2.8],
         title: 'The Critique of Pure Reason',
         body: `<p>Kant spent eleven years working on the <em>Critique of Pure Reason</em> (1781), then wrote it in four to five months. He called it a "Copernican revolution" in philosophy.</p>
         <p>The book asked: what can reason know without any input from experience? His answer: the structure of possible experience — the forms of intuition (space and time) and the categories of understanding. But reason cannot reach beyond experience to prove God, the soul, or free will.</p>
         <p>The "antinomies" — where pure reason produces contradictions (is the world finite or infinite? is the will free or determined?) — prove that metaphysics overreaches. Reason has hard limits.</p>`,
       },
       {
-        position: [-4, 1, 0],
+        position: [-2.8, 1, -2.8],
         title: 'The Sublime',
         body: `<p>In the <em>Critique of Judgment</em>, Kant distinguished beauty from the sublime. Beauty pleases because the world fits our faculties — the world and our minds are in harmony.</p>
         <p>The sublime is different: it arises when nature overwhelms our faculties — a storm at sea, an infinite starry sky, a mountain range that dwarfs the human. First we feel fear; then, as we realize that our <em>reason</em> can conceive the infinite even if our senses can't grasp it, we feel a strange exaltation.</p>

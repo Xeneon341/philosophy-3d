@@ -368,14 +368,14 @@ export class NietzscheWorld extends BaseWorld {
   _buildHotspots() {
     const hotspots = [
       {
-        position: [0, 0, 0],
+        position: [-2, 0, 1],
         title: 'Eternal Recurrence',
         body: `<p>Nietzsche's most abysmal thought: what if this life — every pain, every joy, every moment — recurred infinitely, exactly as it is, forever? Could you affirm it? Could you will it to repeat?</p>
         <p>This is not a cosmological claim but a psychological test. The person who can say "Yes — <em>da capo</em>, again!" to every moment of their life has achieved the highest form of self-affirmation. They have become what Nietzsche calls the Übermensch.</p>
         <p>The thought first comes to him in <em>The Gay Science</em>: "How well-disposed would you have to become to yourself and to life to <em>crave nothing more fervently</em> than this ultimate eternal confirmation?"</p>`,
       },
       {
-        position: [0, 0.5, 0],
+        position: [2, 0, -1],
         title: 'The Will to Power',
         body: `<p>Nietzsche's fundamental claim: all living things are driven not by self-preservation (contra Darwin) but by a will to expand, overcome, create, dominate — the <em>Will to Power</em>.</p>
         <p>This is not merely political power. A scholar's will to power is the drive to master a field. An artist's is the drive to create. Even asceticism — the saint denying himself — is will to power turned inward, dominating the self.</p>
