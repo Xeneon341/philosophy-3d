@@ -416,10 +416,11 @@ export class AristotleWorld extends BaseWorld {
       },
       {
         position: [0, 3.5, 0],
-        title: 'The Celestial Spheres',
-        body: `<p>Aristotle's cosmos consisted of nested crystalline spheres carrying the planets, Sun, and Moon around a stationary Earth. The outermost sphere — the primum mobile — was set in motion by the Unmoved Mover and transmitted motion inward.</p>
-        <p>The sublunary world (below the Moon) was composed of the four elements — earth, water, fire, air — all subject to change and decay. The superlunary world was made of a fifth element, the <em>aether</em>, eternal and unchanging.</p>
-        <p>This cosmology dominated Western and Islamic science for nearly 2,000 years, until Copernicus, Galileo, and Newton dismantled it.</p>`,
+        title: 'The Celestial Spheres & Their Movers',
+        body: `<p>Aristotle's cosmos had nested crystalline spheres carrying the planets, Sun, and Moon — but the spheres themselves are not the philosophically important part. Each sphere requires its own <em>unmoved mover</em> to sustain its eternal circular motion. Aristotle counted 47–55 such movers.</p>
+        <p>These movers are entirely <strong>immaterial</strong> — no body, no location. They cause motion not by pushing but as <em>final causes</em>: objects of desire or love. They engage only in pure thought thinking itself (<em>noesis noeseos</em>) and are indifferent to the cosmos. They do not watch over or govern it.</p>
+        <p>Aquinas later identified these movers with <strong>angels</strong> — "separated substances" in his terminology — harmonising Aristotle with the Christian angelic hierarchy. The reading is philologically defensible (the movers are genuinely <em>chōristos</em>, separate from matter), but Aquinas imported personhood, will, and providence that Aristotle never attributed to them. Islamic philosophers Avicenna and Averroes made similar identifications before him.</p>
+        <p>The sublunary world (below the Moon) was composed of the four elements — earth, water, fire, air — subject to change and decay. The superlunary world was made of <em>aether</em>, eternal and unchanging. This cosmology dominated Western and Islamic thought for nearly 2,000 years, until Copernicus, Galileo, and Newton dismantled it.</p>`,
       },
       {
         position: [0, -1.5, 4],

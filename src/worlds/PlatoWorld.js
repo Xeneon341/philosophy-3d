@@ -3,10 +3,10 @@ import { BaseWorld } from './BaseWorld.js';
 
 // Layout (all Y values relative to world origin at floor level y=0):
 //   z=+6  : cave entrance — open, bright golden light streams in
+//   z=+4  : Forms floating at y=3.5–5 inside the cave, bathed by entrance light
 //   z=+2  : fire pits (y=0, flames rise to y~1)
 //   z= 0  : prisoners seated, facing -z (toward shadow wall)
 //   z=-4  : shadow wall (back of cave)
-//   z=-3  : Forms floating at y=1–3 in front of shadow wall
 //   The cave slopes upward toward entrance: entrance floor at y=+1.5, back at y=0
 
 export class PlatoWorld extends BaseWorld {
@@ -907,14 +907,14 @@ export class PlatoWorld extends BaseWorld {
       { geo: new THREE.DodecahedronGeometry(0.26, 0), color: 0xffe8b0, emissive: 0xb07020 },
     ];
 
-    // Forms are OUTSIDE and ABOVE the cave — visible through the entrance at +z
-    // They represent transcendent reality beyond the cave, glimpsed through the opening
-    // Forms cluster above and beyond the staircase entrance (x≈3.3, y≈3.6, z≈6)
+    // Forms float INSIDE the cave, above and in front of the entrance light (z≈5–6, y≈3–5)
+    // Bathed by the golden light flooding in — they appear as ideal archetypes hovering
+    // just within reach before the ascent, above the fire and parapet area
     const formPositions = [
-      [2.5, 5.5, 7.5],
-      [4.2, 6.0, 8.0],
-      [3.3, 7.5, 7.0],
-      [5.0, 4.5, 8.5],
+      [-1.0, 4.2, 4.5],
+      [ 1.2, 5.0, 5.0],
+      [ 0.0, 3.5, 4.0],
+      [ 2.0, 4.0, 3.5],
     ];
 
     FORM_DEFS.forEach(({ geo, color, emissive }, i) => {
@@ -973,7 +973,7 @@ export class PlatoWorld extends BaseWorld {
   _buildHotspots() {
     const hotspots = [
       {
-        position: [1.8, 6.5, 8.0],
+        position: [1.2, 5.5, 4.5],
         title: 'The Theory of Forms',
         body: `<p>Plato's most radical claim: the physical world is not the real world. Behind every imperfect particular — every beautiful face, every just act — stands a perfect, eternal, unchanging <em>Form</em>.</p>
         <p>The Forms are not mental constructs but objective realities, more real than anything we can touch. The Form of Beauty is more real than any beautiful object; the Form of Justice more real than any just law.</p>
@@ -1021,7 +1021,7 @@ export class PlatoWorld extends BaseWorld {
 
   _update(t) {
     // Rotate and pulse Forms
-    const formBaseY = [5.5, 6.0, 7.5, 4.5];
+    const formBaseY = [4.2, 5.0, 3.5, 4.0];
     this.forms.forEach((form, i) => {
       form.rotation.x = t * 0.22 + i * 0.9;
       form.rotation.y = t * 0.35 + i * 0.7;
